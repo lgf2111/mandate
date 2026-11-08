@@ -18,7 +18,7 @@ because the enforcement is ordinary deterministic code, not another prompt.
 ## Quickstart (30 seconds, no credentials)
 
 ```bash
-git clone <this repo> mandate && cd mandate
+git clone https://github.com/lgf2111/mandate && cd mandate
 npm install
 npm run dev
 ```
