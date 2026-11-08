@@ -39,7 +39,7 @@ The agent proposes; `evaluate()` disposes.
 
 ## Accomplishments
 
-35 tests pass — 16 on the policy engine, 13 on the HTTP API, 6 on catalog search — covering cent-exact boundaries, the block list beating the allow list, unparseable expiry treated as expired, multi-reason denials, and checkout refusing unapproved or denied carts. The full path runs end to end: propose → evaluate → approve → order → capture → ledger, with the budget decrementing between decisions. It runs with zero credentials, and simulated settlements are labelled demo. `npm run typecheck`, `npm test` and `npm run build` run in GitHub Actions.
+48 tests pass — 16 on the policy engine, 13 on the HTTP API, 8 on the agent fallback, 6 on catalog search, 5 on the PayPal client — covering cent-exact boundaries, the block list beating the allow list, unparseable expiry treated as expired, multi-reason denials, and checkout refusing unapproved or denied carts. The full path runs end to end: propose → evaluate → approve → order → capture → ledger, with the budget decrementing between decisions. It runs with zero credentials, and simulated settlements are labelled demo. `npm run typecheck`, `npm test` and `npm run build` run in GitHub Actions.
 
 ## What we learned
 
@@ -69,4 +69,4 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173 — no credentials required; orders are simulated and labelled `demo`. For sandbox orders, copy `.env.example` to `.env` and add `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET`; `npm test` runs the 35 tests.
+Open http://localhost:5173 — no credentials required; orders are simulated and labelled `demo`. For sandbox orders, copy `.env.example` to `.env` and add `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET`; `npm test` runs the 48 tests.
