@@ -13,6 +13,7 @@
     "start": "tsx src/server.ts",
     "test": "vitest run",
     "test:watch": "vitest",
+    "smoke": "./scripts/smoke.sh",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
