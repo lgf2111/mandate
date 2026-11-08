@@ -13,6 +13,20 @@ import { store, type Order } from "./store.js";
 
 const PORT = Number(process.env.PORT ?? 8787);
 
+type AsyncHandler = (
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+) => Promise<unknown>;
+
+/** Express 4 does not await async handlers: an unhandled rejection kills the process
+ *  instead of answering the request. Every async route goes through this. */
+function wrap(handler: AsyncHandler): express.RequestHandler {
+  return (req, res, next) => {
+    handler(req, res, next).catch(next);
+  };
+}
+
 const mandateSchema = z.object({
   name: z.string().min(1).max(80),
   budgetCents: z.number().int().positive().max(10_000_000),
@@ -76,7 +90,7 @@ export function buildApp(): express.Express {
     res.status(201).json({ mandate });
   });
 
-  app.post("/api/proposals", async (req, res) => {
+  app.post("/api/proposals", wrap(async (req, res) => {
     const schema = z.object({ goal: z.string().min(3).max(400), mandateId: z.string().min(1) });
     const parsed = schema.safeParse(req.body);
     if (!parsed.success) {
@@ -93,9 +107,9 @@ export function buildApp(): express.Express {
     const decision = evaluate(proposal, mandate);
     store.saveProposal(proposal);
     res.json({ proposal, decision, engine: agentEngine() });
-  });
+  }));
 
-  app.post("/api/checkout", async (req, res) => {
+  app.post("/api/checkout", wrap(async (req, res) => {
     const schema = z.object({
       proposalId: z.string().min(1),
       mandateId: z.string().min(1),
@@ -160,9 +174,9 @@ export function buildApp(): express.Express {
 
     store.addOrder(baseOrder);
     res.json({ order: baseOrder, approveUrl: created.approveUrl, decision });
-  });
+  }));
 
-  app.post("/api/orders/:id/capture", async (req, res) => {
+  app.post("/api/orders/:id/capture", wrap(async (req, res) => {
     const order = store.listOrders().find((candidate) => candidate.id === req.params.id);
     if (!order) {
       res.status(404).json({ error: "order_not_found" });
@@ -181,7 +195,7 @@ export function buildApp(): express.Express {
     store.addOrder(settled);
     store.recordSettledSpend(order.mandateId, order.totalCents);
     res.json({ order: settled });
-  });
+  }));
 
   app.get("/api/ledger", (_req, res) => {
     res.json({ orders: store.listOrders() });
@@ -203,6 +217,16 @@ export function buildApp(): express.Express {
     app.use(express.static(webDist));
     app.get("*", (_req, res) => res.sendFile(join(webDist, "index.html")));
   }
+
+  // Any rejected promise from a route lands here as a 502 instead of exiting the process.
+  app.use(
+    (error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+      const detail = error instanceof Error ? error.message : String(error);
+      console.error("[api] upstream failure:", detail);
+      if (res.headersSent) return;
+      res.status(502).json({ error: "upstream_failure", detail: detail.slice(0, 200) });
+    },
+  );
 
   return app;
 }

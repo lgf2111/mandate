@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 
 type Reason = { code: string; message: string; severity: "info" | "warn" | "block" };
 type Decision = {
@@ -33,6 +33,12 @@ type Order = {
 };
 
 const money = (cents: number) => `${cents < 0 ? "-" : ""}$${(Math.abs(cents) / 100).toFixed(2)}`;
+
+const OUTCOME_LABEL: Record<Decision["outcome"], string> = {
+  allow: "Allow",
+  require_approval: "Approval required",
+  deny: "Deny",
+};
 
 const EXAMPLES = [
   "trail running shoes under the cap",
@@ -110,13 +116,13 @@ export function App() {
       });
       const body = await response.json();
       if (!response.ok) {
-        setNotice(body.error === "approval_required" ? "Approval is required above the threshold." : body.error);
+        setNotice(body.error === "approval_required" ? "Approval is required above the threshold." : (body.error ?? "Checkout failed."));
         return;
       }
       if (body.approveUrl) {
         setApproveUrl(body.approveUrl);
         setPendingOrderId(body.order.id);
-        setNotice("Order created — approve it in PayPal, then capture.");
+        setNotice("Order created. Approve it in PayPal, then capture the payment.");
       } else {
         setNotice(`Paid ${money(body.order.totalCents)} to ${body.order.merchant}.`);
       }
@@ -131,10 +137,12 @@ export function App() {
     setBusy(true);
     const response = await fetch(`/api/orders/${pendingOrderId}/capture`, { method: "POST" });
     if (response.ok) {
-      setNotice("Captured.");
+      setNotice("Payment captured.");
       setApproveUrl(null);
       setPendingOrderId(null);
       await refresh();
+    } else {
+      setNotice("Payment capture failed. Check the order in PayPal and try again.");
     }
     setBusy(false);
   }
@@ -160,7 +168,9 @@ export function App() {
     if (response.ok) {
       setMandates((current) => [...current, body.mandate]);
       setSelectedId(body.mandate.id);
-      setNotice("Mandate saved as a new version.");
+      setNotice("Saved as a new mandate version.");
+    } else {
+      setNotice(body.error === "invalid_mandate" ? "The mandate was rejected. Check the fields and try again." : (body.error ?? "Could not save the mandate."));
     }
   }
 
@@ -170,6 +180,7 @@ export function App() {
     setDecision(null);
     setOrders([]);
     setSelectedId("");
+    setNotice("");
     await refresh();
   }
 
@@ -177,7 +188,7 @@ export function App() {
     <div className="shell">
       <header className="top">
         <div className="brand">
-          <div className="mark">M</div>
+          <div className="mark" aria-hidden="true">M</div>
           <div>
             <h1>Mandate</h1>
             <p>Spending guardrails for AI shopping agents, settled with PayPal.</p>
@@ -185,19 +196,26 @@ export function App() {
         </div>
         <div className="badges">
           <span className={`badge ${health?.paypal === "live" ? "live" : ""}`}>
-            PayPal {health?.paypal ?? "…"}
+            PayPal: {health?.paypal ?? "…"}
           </span>
-          <span className="badge">agent {health?.agent ?? "…"}</span>
-          <button className="ghost" onClick={reset}>Reset demo</button>
+          <span className="badge">agent: {health?.agent ?? "…"}</span>
+          <button
+            type="button"
+            className="ghost"
+            onClick={reset}
+            title="Clears all mandates and orders, then reseeds the demo"
+          >
+            Reset demo data
+          </button>
         </div>
       </header>
 
-      <main className="grid">
+      <main className="grid" aria-busy={busy}>
         <section className="col">
           <div className="card">
             <div className="card-head">
               <h2>Mandate</h2>
-              {selected && <span className="muted mono">{selected.id.slice(0, 8)}</span>}
+              {selected && <span className="muted mono" title={selected.id}>{selected.id.slice(0, 8)}</span>}
             </div>
             {selected ? (
               <MandateEditor mandate={selected} onChange={saveMandate} />
@@ -207,17 +225,30 @@ export function App() {
           </div>
 
           <div className="card">
-            <div className="card-head"><h2>Goal</h2><span className="muted mono">{engine || "agent"}</span></div>
-            <textarea value={goal} onChange={(event) => setGoal(event.target.value)} rows={3} />
-            <div className="chips">
+            <div className="card-head">
+              <h2>Goal</h2>
+              <span className="muted mono">{engine ? `engine ${engine}` : "engine pending"}</span>
+            </div>
+            <label className="sr-only" htmlFor="goal-input">Shopping goal</label>
+            <textarea
+              id="goal-input"
+              value={goal}
+              onChange={(event) => setGoal(event.target.value)}
+              rows={3}
+              aria-describedby="goal-hint"
+            />
+            <p id="goal-hint" className="hint">
+              Describe the purchase. The agent proposes a cart; the mandate checks it before any money moves.
+            </p>
+            <div className="chips" role="group" aria-label="Example goals">
               {EXAMPLES.map((example) => (
-                <button key={example} className="chip" onClick={() => setGoal(example)}>{example}</button>
+                <button key={example} type="button" className="chip" onClick={() => setGoal(example)}>{example}</button>
               ))}
             </div>
-            <button className="primary" disabled={busy || !selected} onClick={askAgent}>
+            <button type="button" className="primary" disabled={busy || !selected} onClick={askAgent}>
               {busy ? "Working…" : "Ask the agent"}
             </button>
-            {notice && <p className="notice">{notice}</p>}
+            <p className="notice" role="status" aria-live="polite" aria-atomic="true">{notice}</p>
           </div>
         </section>
 
@@ -225,14 +256,23 @@ export function App() {
           <div className="card proposal">
             <div className="card-head">
               <h2>Proposal</h2>
-              {decision && <span className={`outcome ${decision.outcome}`}>{decision.outcome.replace("_", " ")}</span>}
+              <span className="outcome-slot" role="status" aria-live="polite" aria-atomic="true">
+                {decision && (
+                  <>
+                    <span className="sr-only">Decision: </span>
+                    <span className={`outcome ${decision.outcome}`}>{OUTCOME_LABEL[decision.outcome]}</span>
+                  </>
+                )}
+              </span>
             </div>
 
-            {!proposal && <p className="muted">Ask the agent to get a cart that is checked against the mandate before any money moves.</p>}
+            {!proposal && (
+              <p className="muted">No proposal yet. Describe a goal and ask the agent; every cart is checked against the mandate before money moves.</p>
+            )}
 
             {proposal && (
               <>
-                <ul className="items">
+                <ul className="items" aria-label="Proposed items">
                   {proposal.items.map((item) => (
                     <li key={item.sku}>
                       <div>
@@ -242,10 +282,13 @@ export function App() {
                       <span className="mono">{money(item.priceCents * item.qty)}</span>
                     </li>
                   ))}
-                  {proposal.items.length === 0 && <li className="muted">No items selected.</li>}
+                  {proposal.items.length === 0 && <li className="muted">The agent did not select any items.</li>}
                 </ul>
 
-                <p className="rationale">“{proposal.rationale}”</p>
+                <p className="rationale">
+                  <span className="sr-only">Agent rationale: </span>
+                  “{proposal.rationale}”
+                </p>
 
                 {decision && (
                   <div className="decision">
@@ -253,7 +296,7 @@ export function App() {
                       <span>Total</span><strong className="mono">{money(decision.totalCents)}</strong>
                     </div>
                     <div className="row">
-                      <span>Budget remaining after</span><span className="mono">{money(decision.remainingAfterCents)}</span>
+                      <span>Budget remaining after this order</span><span className="mono">{money(decision.remainingAfterCents)}</span>
                     </div>
                     <ul className="reasons">
                       {decision.reasons.map((reason) => (
@@ -265,28 +308,46 @@ export function App() {
 
                 <div className="actions">
                   {decision?.outcome === "deny" ? (
-                    <div className="blocked">Blocked by the mandate — no payment is possible for this cart.</div>
+                    <div className="blocked">Blocked by the mandate. No payment can be made for this cart.</div>
                   ) : (
                     <button
+                      type="button"
                       className="primary"
                       disabled={busy || !decision}
                       onClick={() => checkout(decision?.outcome === "require_approval")}
                     >
-                      {decision?.outcome === "require_approval" ? "Approve & pay" : "Pay with PayPal"}
+                      {decision?.outcome === "require_approval" ? "Approve and pay" : "Pay with PayPal"}
                     </button>
                   )}
-                  {approveUrl && <a className="link" href={approveUrl} target="_blank" rel="noreferrer">Open PayPal</a>}
-                  {approveUrl && <button className="ghost" onClick={capturePending}>Capture</button>}
+                  {approveUrl && (
+                    <a className="link" href={approveUrl} target="_blank" rel="noreferrer">
+                      Open PayPal approval<span className="sr-only"> (opens in a new tab)</span>
+                    </a>
+                  )}
+                  {approveUrl && (
+                    <button type="button" className="ghost" onClick={capturePending} disabled={busy}>
+                      Capture payment
+                    </button>
+                  )}
                 </div>
               </>
             )}
           </div>
 
           <div className="card">
-            <div className="card-head"><h2>Ledger</h2><span className="muted mono">{orders.length} order{orders.length === 1 ? "" : "s"}</span></div>
+            <div className="card-head">
+              <h2>Ledger</h2>
+              <span className="muted mono">{orders.length} order{orders.length === 1 ? "" : "s"}</span>
+            </div>
             <table>
+              <caption className="sr-only">Recent settlements</caption>
               <thead>
-                <tr><th>When</th><th>Merchant</th><th>Amount</th><th>Status</th></tr>
+                <tr>
+                  <th scope="col">When</th>
+                  <th scope="col">Merchant</th>
+                  <th scope="col">Amount</th>
+                  <th scope="col">Status</th>
+                </tr>
               </thead>
               <tbody>
                 {orders.map((order) => (
@@ -294,7 +355,7 @@ export function App() {
                     <td className="mono small">{new Date(order.createdAt).toLocaleTimeString()}</td>
                     <td>{order.merchant}</td>
                     <td className="mono">{money(order.totalCents)}</td>
-                    <td><span className={`pill ${order.status}`}>{order.status}{order.provider === "demo" ? " · demo" : ""}</span></td>
+                    <td><span className={`pill ${order.status}`}>{order.status}{order.provider === "demo" ? " · demo mode" : ""}</span></td>
                   </tr>
                 ))}
                 {orders.length === 0 && <tr><td colSpan={4} className="muted">No settlements yet.</td></tr>}
@@ -309,39 +370,72 @@ export function App() {
 
 function MandateEditor({ mandate, onChange }: { mandate: Mandate; onChange: (patch: Partial<Mandate>) => void }) {
   const [draft, setDraft] = useState(mandate);
+  const baseId = useId();
   useEffect(() => setDraft(mandate), [mandate]);
 
-  const field = (label: string, value: string, onInput: (value: string) => void, hint?: string) => (
-    <label className="field">
-      <span>{label}</span>
-      <input value={value} onChange={(event) => onInput(event.target.value)} />
-      {hint && <em>{hint}</em>}
-    </label>
-  );
+  const field = (
+    key: string,
+    label: string,
+    value: string,
+    onInput: (value: string) => void,
+    hint?: string,
+    numeric = false,
+  ) => {
+    const inputId = `${baseId}-${key}`;
+    const hintId = `${inputId}-hint`;
+    return (
+      <div className="field">
+        <label htmlFor={inputId}>{label}</label>
+        <input
+          id={inputId}
+          value={value}
+          onChange={(event) => onInput(event.target.value)}
+          inputMode={numeric ? "decimal" : undefined}
+          aria-describedby={hint ? hintId : undefined}
+        />
+        {hint && <em id={hintId}>{hint}</em>}
+      </div>
+    );
+  };
 
   return (
     <div className="mandate">
-      {field("Name", draft.name, (value) => setDraft({ ...draft, name: value }))}
+      {field("name", "Name", draft.name, (value) => setDraft({ ...draft, name: value }))}
       <div className="two">
-        {field("Budget", (draft.budgetCents / 100).toString(), (value) =>
-          setDraft({ ...draft, budgetCents: Math.round(Number(value || 0) * 100) }), "USD")}
-        {field("Per-transaction cap", ((draft.perTransactionCapCents ?? 0) / 100).toString(), (value) =>
-          setDraft({ ...draft, perTransactionCapCents: value ? Math.round(Number(value) * 100) : null }))}
+        {field("budget", "Budget", (draft.budgetCents / 100).toString(), (value) =>
+          setDraft({ ...draft, budgetCents: Math.round(Number(value || 0) * 100) }),
+          "Total budget in USD.", true)}
+        {field("per-transaction-cap", "Per-transaction cap", ((draft.perTransactionCapCents ?? 0) / 100).toString(), (value) =>
+          setDraft({ ...draft, perTransactionCapCents: value ? Math.round(Number(value) * 100) : null }),
+          "Leave empty for no cap.", true)}
       </div>
-      {field("Approval threshold", ((draft.approvalThresholdCents ?? 0) / 100).toString(), (value) =>
+      {field("approval-threshold", "Approval threshold", ((draft.approvalThresholdCents ?? 0) / 100).toString(), (value) =>
         setDraft({ ...draft, approvalThresholdCents: value ? Math.round(Number(value) * 100) : null }),
-        "Above this, a human must approve")}
-      {field("Allowed merchants", draft.allowedMerchants.join(", "), (value) =>
-        setDraft({ ...draft, allowedMerchants: split(value) }), "empty = any")}
-      {field("Blocked merchants", draft.blockedMerchants.join(", "), (value) =>
-        setDraft({ ...draft, blockedMerchants: split(value) }))}
-      {field("Allowed categories", draft.allowedCategories.join(", "), (value) =>
-        setDraft({ ...draft, allowedCategories: split(value) }), "empty = any")}
+        "Orders above this amount need human approval. Leave empty for none.", true)}
+      {field("allowed-merchants", "Allowed merchants", draft.allowedMerchants.join(", "), (value) =>
+        setDraft({ ...draft, allowedMerchants: split(value) }),
+        "Comma-separated. Leave empty to allow any merchant.")}
+      {field("blocked-merchants", "Blocked merchants", draft.blockedMerchants.join(", "), (value) =>
+        setDraft({ ...draft, blockedMerchants: split(value) }),
+        "Comma-separated. Leave empty to block none.")}
+      {field("allowed-categories", "Allowed categories", draft.allowedCategories.join(", "), (value) =>
+        setDraft({ ...draft, allowedCategories: split(value) }),
+        "Comma-separated. Leave empty to allow any category.")}
 
       <div className="row meta">
         <span className="muted">Spent {money(draft.spentCents)} of {money(draft.budgetCents)}</span>
-        <button className="primary small" onClick={() => onChange(draft)}>Save as new mandate</button>
+        <button
+          type="button"
+          className="primary small"
+          onClick={() => onChange(draft)}
+          aria-describedby="save-hint"
+        >
+          Save as new version
+        </button>
       </div>
+      <p className="hint" id="save-hint">
+        Creates a new mandate version with these settings. The current version keeps its own spending history.
+      </p>
     </div>
   );
 }
