@@ -84,6 +84,14 @@ npm run typecheck
 | `MANDATE_LLM_MODEL` | `deepseek-v4.1-flash` | Model id |
 | `PORT` | `8787` | API port |
 
+## Slides and video
+
+- **`docs/media/deck.html`** — the deck, 9 slides, 1920×1080. Open in a browser; arrow keys, space or click advance.
+- **`docs/media/mandate-deck.pdf`** — same deck as PDF, printed from that HTML.
+- **`docs/media/mandate-deck.pptx`** — PowerPoint version, same content, speaker notes carry the narration.
+- **`docs/media/mandate-pitch.mp4`** — 2:23 narrated walkthrough, under the 3-minute limit.
+- Regenerate: `scripts/build_deck.py` (pptx), `scripts/render_slides.py` (PDF → PNG), `scripts/build_video.sh` (frames + narration → MP4).
+
 ## Limits (honest ones)
 
 - The catalog is seeded, not a live product search. Swapping in a real catalog is one function (`searchCatalog`).
