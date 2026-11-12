@@ -241,3 +241,11 @@ details.rules { margin-top: 14px; border-top: 1px solid var(--rule); padding-top
 details.rules > summary { cursor: pointer; color: var(--ink-2); font-size: 13px; }
 details.rules > summary:hover { color: var(--ink); }
 details.rules[open] > summary { margin-bottom: 10px; }
+
+/* The approval link is the action, so it wears the primary button's clothes. */
+.actions a.primary {
+  display: block; text-align: center; text-decoration: none;
+  width: 100%; border-radius: var(--r); padding: 11px 14px;
+  background: var(--accent); color: #fff; font-weight: 600; font-size: 14px;
+}
+.actions a.primary:hover { background: #005c9a; }

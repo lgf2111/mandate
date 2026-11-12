@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 type Reason = { code: string; message: string; severity: "info" | "warn" | "block" };
 type Decision = {
@@ -66,6 +66,7 @@ export function App() {
   const [draftBecause, setDraftBecause] = useState<string>("");
   const [approveUrl, setApproveUrl] = useState<string | null>(null);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
+  const lastCaptureAt = useRef(0);
 
   const selected = useMemo(() => mandates.find((m) => m.id === selectedId) ?? null, [mandates, selectedId]);
 
@@ -138,6 +139,20 @@ export function App() {
       setBusy(false);
     }
   }
+
+  // Returning from PayPal is the approval signal: capture as soon as the window
+  // regains focus, once, so nobody has to hunt for a second button.
+  useEffect(() => {
+    function onFocus() {
+      // A person may come back before finishing the approval; retry on the next
+      // return instead of burning the attempt, but never twice within 5 s.
+      if (!pendingOrderId || Date.now() - lastCaptureAt.current < 5_000) return;
+      lastCaptureAt.current = Date.now();
+      void capturePending();
+    }
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [pendingOrderId]);
 
   async function capturePending() {
     if (!pendingOrderId) return;
@@ -400,6 +415,20 @@ export function App() {
                   <p className="notice" role="status" aria-live="polite" aria-atomic="true">{actionNotice}</p>
                   {decision?.outcome === "deny" ? (
                     <div className="blocked">Blocked by the mandate. No payment can be made for this cart.</div>
+                  ) : approveUrl ? (
+                    <>
+                      <a className="primary" href={approveUrl} target="_blank" rel="noreferrer">
+                        Open PayPal approval
+                        <span className="sr-only"> (opens in a new tab)</span>
+                      </a>
+                      <p className="hint">
+                        Approve in PayPal, then come back to this tab. The payment is captured
+                        automatically.
+                      </p>
+                      <button type="button" className="ghost" onClick={capturePending} disabled={busy}>
+                        {busy ? "Capturing…" : "Capture now"}
+                      </button>
+                    </>
                   ) : (
                     <button
                       type="button"
@@ -408,16 +437,6 @@ export function App() {
                       onClick={() => checkout(decision?.outcome === "require_approval")}
                     >
                       {decision?.outcome === "require_approval" ? "Approve and pay" : "Pay with PayPal"}
-                    </button>
-                  )}
-                  {approveUrl && (
-                    <a className="link" href={approveUrl} target="_blank" rel="noreferrer">
-                      Open PayPal approval<span className="sr-only"> (opens in a new tab)</span>
-                    </a>
-                  )}
-                  {approveUrl && (
-                    <button type="button" className="ghost" onClick={capturePending} disabled={busy}>
-                      Capture payment
                     </button>
                   )}
                 </div>
