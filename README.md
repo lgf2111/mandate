@@ -89,8 +89,8 @@ npm run typecheck
 - **`docs/media/deck.html`** — the deck, 9 slides, 1920×1080. Open in a browser; arrow keys, space or click advance.
 - **`docs/media/mandate-deck.pdf`** — same deck as PDF, printed from that HTML.
 - **`docs/media/mandate-deck.pptx`** — PowerPoint version, same content, speaker notes carry the narration.
-- **`docs/media/mandate-pitch.mp4`** — 2:23 narrated walkthrough, under the 3-minute limit.
-- Regenerate: `scripts/build_deck.py` (pptx), `scripts/render_slides.py` (PDF → PNG), `scripts/build_video.sh` (frames + narration → MP4).
+- **`docs/media/mandate-pitch.mp4`** — 0:40, real footage of the running app: it opens on the refusal, then the approval gate, the settlement and the second cart being denied. Under the 3-minute limit.
+- Regenerate the footage: `scripts/capture_app.py` (Playwright, inside `mcr.microsoft.com/playwright/python`, writes PNG frames) then `scripts/build_footage_video.py` (framing, narration and MP4). The deck's own narration is `scripts/build_video.sh`.
 
 ## Limits (honest ones)
 
