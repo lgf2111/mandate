@@ -9,8 +9,8 @@ the video is recorded and uploaded by hand.
 - **Elevator pitch (200 chars):** Spending guardrails for AI shopping agents: the model proposes a cart, deterministic policy decides, PayPal settles — and every refusal carries a reason code.
 - **Links**
   - Code: https://github.com/lgf2111/mandate
-  - Hosted demo: https://jeffs-macbook-pro.tail895d47.ts.net
-  - Video: `<< paste the YouTube URL here >>`
+  - Hosted demo: https://mandate-1ieq.onrender.com
+  - Video: https://youtu.be/5jYweGWWIfc
 - **Prize categories:** Best Use of Agentic Commerce · Best Use of PayPal + AI
 
 ## Tools (the required field)
@@ -39,7 +39,7 @@ Paste the sections in order; the headings already match the form's long-descript
 
 ## Functional demo — how a judge runs it
 
-**Hosted:** https://jeffs-macbook-pro.tail895d47.ts.net — open, press *Ask the agent*, then
+**Hosted:** https://mandate-1ieq.onrender.com — open, press *Ask the agent*, then
 *Approve and pay*. Reset with *Reset demo data*.
 
 **Locally, no credentials:**

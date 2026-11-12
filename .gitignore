@@ -6,3 +6,4 @@ data/
 .DS_Store
 *.log
 coverage/
+.render-key

@@ -65,8 +65,11 @@ TypeScript, Node.js, Express, React, Vite, Zod, Vitest, PayPal Orders v2 API, Pa
 
 ## Try it
 
-**Hosted demo:** https://jeffs-macbook-pro.tail895d47.ts.net — the app is live, with the
-PayPal sandbox app configured. Press **Ask the agent**, then **Approve and pay**.
+**Hosted demo:** https://mandate-1ieq.onrender.com — the app is live, with the PayPal
+sandbox app and the model configured. Press **Ask the agent**, then **Approve and pay**.
+The free instance sleeps when idle, so the first load may take a minute.
+
+**Video:** https://youtu.be/5jYweGWWIfc
 
 Or run it locally:
 

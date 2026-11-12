@@ -17,9 +17,9 @@ because the enforcement is ordinary deterministic code, not another prompt.
 
 ## Hosted demo
 
-**https://jeffs-macbook-pro.tail895d47.ts.net** — the same build, served through a
-Tailscale Funnel with the PayPal sandbox app and the model configured. It runs on the
-author's machine, so treat it as a demo, not production.
+**https://mandate-1ieq.onrender.com** — the same container, on Render's free tier, with the
+PayPal sandbox app and the model configured. It sleeps after 15 minutes idle; the first
+request after that takes about a minute to wake.
 
 ## Quickstart (30 seconds, no credentials)
 
