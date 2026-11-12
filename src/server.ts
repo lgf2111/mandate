@@ -108,7 +108,7 @@ export function buildApp(): express.Express {
       draft,
       because:
         `Drafted from "${parsed.data.goal}" and the catalogue: the main item is ${primary.name} ` +
-        `at ${(primary.priceCents / 100).toFixed(2)}, so the budget is twice that, the cap is one ` +
+        `at $${(primary.priceCents / 100).toFixed(2)}, so the budget is twice that, the cap is one ` +
         `and a half, and anything above the item price needs you.`,
     });
   });
