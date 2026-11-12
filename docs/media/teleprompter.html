@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mandate — teleprompter</title>
+<style>
+  :root { --ink:#12151b; --dim:#6b7686; --blue:#0070ba; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:#0d1016; color:#f2f5f9;
+         font: 500 34px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  #stage { max-width: 980px; margin: 0 auto; padding: 30vh 28px 60vh; }
+  .slide { margin: 0 0 64px; }
+  .tag { font: 600 13px/1 ui-monospace, Menlo, monospace; letter-spacing:.14em;
+         text-transform: uppercase; color:#5f89b8; margin-bottom:10px; }
+  .line { letter-spacing: -0.01em; }
+  .beat { color:#8ea3bb; font-size:22px; margin-top:14px; }
+  .beat b { color:#dbe6f3; }
+  #bar { position: fixed; top:0; left:0; right:0; display:flex; gap:14px; align-items:center;
+         justify-content:space-between; padding:10px 16px; background:#151a22cc;
+         backdrop-filter: blur(8px); border-bottom:1px solid #232a35;
+         font: 500 13px/1 ui-monospace, Menlo, monospace; color:#9fb0c4; }
+  #bar button, #bar input { font: inherit; color:#e8eef6; background:#202836;
+         border:1px solid #2d3746; border-radius:6px; padding:7px 10px; }
+  #bar button:hover { background:#27313f; }
+  .hint { color:#6b7686; }
+  #readline { position: fixed; left:0; right:0; top: 46vh; height: 2px; background:#0070ba55; pointer-events:none; }
+</style>
+</head>
+<body>
+<div id="bar">
+  <span>MANDATE · SCRIPT <span class="hint">space = pause · ↑↓ = speed</span></span>
+  <span><button id="speedDown">slower</button> <button id="speedUp">faster</button>
+  <button id="reset">top</button> <span id="speed"></span></span>
+</div>
+<div id="readline"></div>
+<div id="stage">
+
+<div class="slide"><div class="tag">01 · cover</div><div class="line">Mandate: spending guardrails for AI shopping agents, settled with PayPal.</div></div>
+<div class="slide"><div class="tag">02 · the gap</div><div class="line">Today an agent with a card can spend anywhere the card clears. The controls live at the bank.</div></div>
+<div class="slide"><div class="tag">03 · who it is for</div><div class="line">This is for someone delegating a bounded purchase: the week's groceries, school supplies, a replacement part.</div></div>
+<div class="slide"><div class="tag">04 · the product</div><div class="line">Say the goal once. Approve the limits the app drafted. Then let it buy.</div></div>
+<div class="slide"><div class="tag">05 · PayPal</div><div class="line">PayPal is the money path: OAuth, Orders two, and a capture that only happens after approval.</div></div>
+<div class="slide"><div class="tag">06 · the model</div><div class="line">The model picks the item and writes the rationale. It cannot set a price, invent a SKU, or authorise anything.</div></div>
+<div class="slide"><div class="tag">07 · the boundary</div><div class="line">One pure function decides, and checkout runs it again, so calling the endpoint directly cannot skip a rule.</div></div>
+<div class="slide"><div class="tag">08 · the refusal</div><div class="line">Here the cart is a hundred and fifteen dollars, above the hundred dollar approval line. Nothing moves.</div></div>
+<div class="slide"><div class="tag">09 · settled</div><div class="line">Approve, and PayPal settles it. The ledger keeps the row, and the budget drops to eighty five.</div></div>
+<div class="slide"><div class="tag">10 · proof</div><div class="line">Fifty four tests, CI green, and a real sandbox capture recorded with its capture id.</div></div>
+<div class="slide"><div class="tag">11 · why different</div><div class="line">A capped card cannot say the cart is ninety four dollars but only eighty five remains. A per cart policy can.</div></div>
+<div class="slide"><div class="tag">12 · close</div><div class="line">Run it in thirty seconds, with no credentials. The model proposes. The code disposes.</div>
+  <div class="beat"><b>Switch scene.</b> “Let me show you.”</div></div>
+
+<div class="slide"><div class="tag">demo · 1</div><div class="line">The goal: trail running shoes under the cap.</div>
+  <div class="beat">type it → <b>Draft the limits from this goal</b></div></div>
+<div class="slide"><div class="tag">demo · 2</div><div class="line">The limits are drafted from the catalogue. I approve them.</div>
+  <div class="beat"><b>Use these limits</b></div></div>
+<div class="slide"><div class="tag">demo · 3</div><div class="line">The agent proposes two items: a hundred and fifteen dollars. Approval required.</div>
+  <div class="beat"><b>Ask the agent</b> → let the cart sit on screen for two seconds</div></div>
+<div class="slide"><div class="tag">demo · 4</div><div class="line">I approve. PayPal settles, and the ledger takes the row.</div>
+  <div class="beat"><b>Approve and pay</b> → stop recording on the ledger row</div></div>
+
+</div>
+<script>
+  let speed = 26;           // pixels per second
+  let paused = false;
+  let last = performance.now();
+  const label = document.getElementById('speed');
+  const paint = () => label.textContent = paused ? 'paused' : speed + ' px/s';
+  const step = now => {
+    const dt = (now - last) / 1000;
+    last = now;
+    if (!paused) window.scrollBy(0, speed * dt);
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+  paint();
+  addEventListener('keydown', event => {
+    if (event.code === 'Space') { event.preventDefault(); paused = !paused; paint(); }
+    if (event.code === 'ArrowUp') { speed = Math.min(120, speed + 4); paint(); }
+    if (event.code === 'ArrowDown') { speed = Math.max(6, speed - 4); paint(); }
+    if (event.code === 'KeyR') { window.scrollTo(0, 0); }
+  });
+  document.getElementById('speedUp').onclick = () => { speed = Math.min(120, speed + 6); paint(); };
+  document.getElementById('speedDown').onclick = () => { speed = Math.max(6, speed - 6); paint(); };
+  document.getElementById('reset').onclick = () => window.scrollTo(0, 0);
+</script>
+</body>
+</html>
