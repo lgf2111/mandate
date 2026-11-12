@@ -9,18 +9,25 @@
  */
 
 :root {
-  --paper: #fbfaf8;
+  /* PayPal's own palette, used structurally: navy carries the brand and headings,
+     PayPal blue is the one action colour, and a cool paper ground keeps the page
+     reading as a statement rather than a dashboard. Semantic colours stay their
+     own (green captured, amber pending, red refused) so state never borrows the
+     brand's meaning. */
+  --paper: #f5f7fa;
   --panel: #ffffff;
-  --rule: #e3dfd7;
-  --rule-strong: #c8c2b7;
-  --ink: #14161a;
-  --ink-2: #454a52;
-  --ink-3: #6b7078;
-  --stamp: #7a1f2b;
-  --good: #1d6b46;
+  --rule: #dfe4ec;
+  --rule-strong: #98a4b4;
+  --ink: #0b1b33;
+  --navy: #001c64;
+  --ink-2: #4a5568;
+  --ink-3: #6b7686;
+  --accent: #0070ba;
+  --accent-soft: #eaf3fb;
+  --good: #1d7a4d;
   --warn: #8a5a00;
-  --bad: #a3241d;
-  --focus: #1f4fd6;
+  --bad: #c4271f;
+  --focus: #0070ba;
   --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   --r: 4px;
@@ -58,10 +65,10 @@ body {
 .brand { display: flex; align-items: baseline; gap: 12px; }
 .mark {
   width: 22px; height: 22px; display: grid; place-items: center;
-  border: 1px solid var(--ink); border-radius: 2px;
-  font: 600 12px/1 var(--mono); color: var(--ink); background: none;
+  border: 1px solid var(--navy); border-radius: 2px;
+  font: 600 12px/1 var(--mono); color: var(--navy); background: none;
 }
-h1 { margin: 0; font-size: 21px; font-weight: 600; letter-spacing: -0.01em; }
+h1 { margin: 0; font-size: 21px; font-weight: 600; letter-spacing: -0.01em; color: var(--navy); }
 .brand p { margin: 0; color: var(--ink-3); font-size: 13px; }
 
 .badges { display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
@@ -73,8 +80,8 @@ h1 { margin: 0; font-size: 21px; font-weight: 600; letter-spacing: -0.01em; }
   content: ""; width: 5px; height: 5px; border-radius: 50%;
   background: var(--rule-strong); display: inline-block;
 }
-.badge.live { color: var(--good); }
-.badge.live::before { background: var(--good); }
+.badge.live { color: var(--accent); }
+.badge.live::before { background: var(--accent); }
 
 /* ---------- columns ---------- */
 
@@ -91,7 +98,7 @@ h1 { margin: 0; font-size: 21px; font-weight: 600; letter-spacing: -0.01em; }
   border-radius: var(--r);
   padding: 18px 18px 16px;
 }
-.card.draft { border-color: var(--ink); }
+.card.draft { border-color: var(--accent); background: var(--accent-soft); }
 
 .card-head {
   display: flex; align-items: baseline; justify-content: space-between;
@@ -99,13 +106,13 @@ h1 { margin: 0; font-size: 21px; font-weight: 600; letter-spacing: -0.01em; }
   border-bottom: 1px solid var(--rule);
 }
 .card-head h2 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -0.005em; }
-.card-head .muted { color: var(--ink-3); }
+.card-head .muted { color: var(--ink-2); }
 
 /* A step number is navigation, so it reads as a figure before the heading. */
 .step {
   display: inline-block; padding-right: 8px; margin-right: 6px;
   border-right: 1px solid var(--rule-strong);
-  font: 500 11px/1 var(--mono); color: var(--ink-3); letter-spacing: 0.04em;
+  font: 500 11px/1 var(--mono); color: var(--ink-2); letter-spacing: 0.04em;
   vertical-align: 1px;
 }
 
@@ -137,10 +144,10 @@ textarea { resize: vertical; }
 button { font: inherit; cursor: pointer; }
 button.primary {
   width: 100%; border: 0; border-radius: var(--r); padding: 11px 14px;
-  background: var(--ink); color: #fff; font-weight: 600; font-size: 14px;
+  background: var(--accent); color: #fff; font-weight: 600; font-size: 14px;
   transition: background 120ms ease, transform 60ms ease;
 }
-button.primary:hover:not(:disabled) { background: #000; }
+button.primary:hover:not(:disabled) { background: #005c9a; }
 button.primary:active:not(:disabled) { transform: translateY(1px); }
 button.primary:disabled { background: var(--rule-strong); color: #fff; cursor: default; }
 button.primary.small { width: auto; padding: 8px 12px; font-size: 13px; }
@@ -154,7 +161,7 @@ button.ghost:disabled { color: var(--ink-3); border-color: var(--rule); cursor: 
 
 .chips { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 10px 0 14px; padding: 0; }
 .chip {
-  border: 0; background: none; padding: 0; color: var(--ink-2);
+  border: 0; background: none; padding: 0; color: var(--accent);
   font-size: 13px; text-decoration: underline; text-underline-offset: 3px;
   text-decoration-color: var(--rule-strong);
 }
@@ -209,16 +216,17 @@ button.ghost:disabled { color: var(--ink-3); border-color: var(--rule); cursor: 
 
 table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 th {
-  text-align: left; font: 500 11.5px/1 var(--mono); letter-spacing: 0.06em;
-  text-transform: uppercase; color: var(--ink-3);
+  text-align: left; font: 500 12px/1 var(--mono); letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--ink-2);
   padding: 0 0 6px; border-bottom: 1px solid var(--rule-strong);
 }
 th:not(:first-child), td:not(:first-child) { text-align: right; }
 td { padding: 8px 0; border-bottom: 1px solid var(--rule); }
 tbody tr:last-child td { border-bottom: 0; }
+td.mono { color: var(--ink); }
 .pill { font: 12px/1 var(--mono); color: var(--ink-2); }
 .pill.captured { color: var(--good); }
-.pill.created { color: var(--warn); }
+.pill.created { color: var(--ink-2); }
 .pill.failed { color: var(--bad); }
 
 .muted { color: var(--ink-3); }

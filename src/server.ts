@@ -97,7 +97,9 @@ export function buildApp(): express.Express {
       perTransactionCapCents: roundUpTo(primary.priceCents * 1.5, 5_000),
       approvalThresholdCents: roundUpTo(primary.priceCents, 5_000),
       allowedCategories: [...new Set(matches.map((item) => item.category))],
-      allowedMerchants: [...new Set(matches.map((item) => item.merchant))],
+      // Only the merchant the agent will actually use. Allow-listing every match
+      // would quietly permit shops the person never chose.
+      allowedMerchants: [primary.merchant],
       blockedMerchants: [],
       expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
       currency: "USD",
