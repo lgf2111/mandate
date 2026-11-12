@@ -95,7 +95,7 @@ npm run typecheck
 - **`docs/media/deck.html`** — the deck, 9 slides, 1920×1080. Open in a browser; arrow keys, space or click advance.
 - **`docs/media/mandate-deck.pdf`** — same deck as PDF, printed from that HTML.
 - **`docs/media/mandate-deck.pptx`** — PowerPoint version, same content, speaker notes carry the narration.
-- **`docs/media/mandate-pitch-v2.mp4`** — 0:22 of the current UI: the goal, the drafted limits, the cart landing on the approval line, the settlement and the ledger row.
+- **`docs/media/mandate-pitch-v3.mp4`** — 1:27: the twelve slides narrated, then the app at full frame — the goal, the drafted limits, the approval line, the settlement and the ledger row.
 - **`docs/media/deck-v2.html`** / **`deck-v2.pdf`** — the twelve-slide pitch, one slide per judging criterion.
 - Regenerate the footage: `scripts/capture_app.py` (Playwright, inside `mcr.microsoft.com/playwright/python`, writes PNG frames) then `scripts/build_footage_video.py` (framing, narration and MP4). The deck's own narration is `scripts/build_video.sh`.
 
