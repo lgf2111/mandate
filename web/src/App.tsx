@@ -191,7 +191,7 @@ export function App() {
         setActionNotice("Order created. Approve it in PayPal, then capture the payment.");
       } else {
         setPaidOrder({ totalCents: body.order.totalCents, merchant: body.order.merchant });
-        setActionNotice(`Paid ${money(body.order.totalCents)} to ${body.order.merchant}.`);
+        setActionNotice("");
       }
       await refresh();
     } catch (error) {
