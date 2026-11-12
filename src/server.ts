@@ -5,7 +5,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { z } from "zod";
-import { agentEngine, proposeItems } from "./agent.js";
+import { agentEngine, proposeWithEngine } from "./agent.js";
 import { CATALOG } from "./catalog.js";
 import { createOrder, captureOrder, paypalMode } from "./paypal.js";
 import { evaluate, proposalTotalCents, type Mandate, type Proposal } from "./policy.js";
@@ -103,10 +103,16 @@ export function buildApp(): express.Express {
       return;
     }
 
-    const proposal = await proposeItems(parsed.data.goal, mandate, crypto.randomUUID());
+    // The response reports the engine that actually answered. Reporting the
+    // configured one would let a silent fallback look like a model response.
+    const { proposal, engine } = await proposeWithEngine(
+      parsed.data.goal,
+      mandate,
+      crypto.randomUUID(),
+    );
     const decision = evaluate(proposal, mandate);
     store.saveProposal(proposal);
-    res.json({ proposal, decision, engine: agentEngine() });
+    res.json({ proposal, decision, engine });
   }));
 
   app.post("/api/checkout", wrap(async (req, res) => {

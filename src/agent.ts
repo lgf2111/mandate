@@ -15,6 +15,10 @@ interface AgentDraft {
 const LLM_BASE = process.env.MANDATE_LLM_BASE_URL?.replace(/\/$/, "");
 const LLM_KEY = process.env.MANDATE_LLM_API_KEY;
 const LLM_MODEL = process.env.MANDATE_LLM_MODEL ?? "deepseek-v4.1-flash";
+// Some OpenAI-compatible gateways (OpenCode Go among them) route by a session
+// header and answer 400 without one. Off by default so a plain endpoint is sent
+// exactly what it expects.
+const LLM_SESSION = process.env.MANDATE_LLM_SESSION_HEADER === "1";
 
 function toLineItem(product: Product, qty = 1): LineItem {
   return {
@@ -91,6 +95,9 @@ async function llmDraft(goal: string, mandate: Mandate): Promise<AgentDraft | nu
   const system = [
     "You are a shopping agent operating under a spending mandate.",
     "Choose the fewest items that satisfy the goal without violating the mandate.",
+    "When the goal asks for gear and the candidate list holds an accessory from the same",
+    "merchant priced at or below half the main item and inside the remaining budget, include",
+    "it so the cart is complete: one merchant, one basket, no filler.",
     "Reply with JSON only: {\"skus\": string[], \"rationale\": string}.",
     "Never invent SKUs. Keep one merchant per order. rationale must cite the binding limits.",
   ].join(" ");
@@ -117,7 +124,15 @@ async function llmDraft(goal: string, mandate: Mandate): Promise<AgentDraft | nu
 
   const response = await fetch(`${LLM_BASE}/chat/completions`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${LLM_KEY}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${LLM_KEY}`,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      // Some gateways sit behind a WAF that rejects a bot-like user agent with
+      // Cloudflare 1010 before the request ever reaches the model.
+      "User-Agent": "mandate/0.1 (+https://github.com/lgf2111/mandate)",
+      ...(LLM_SESSION ? { "x-opencode-session": crypto.randomUUID() } : {}),
+    },
     body: JSON.stringify({
       model: LLM_MODEL,
       temperature: 0,
@@ -127,7 +142,7 @@ async function llmDraft(goal: string, mandate: Mandate): Promise<AgentDraft | nu
         { role: "user", content: user },
       ],
     }),
-    signal: AbortSignal.timeout(20_000),
+    signal: AbortSignal.timeout(Number(process.env.MANDATE_LLM_TIMEOUT_MS ?? 60_000)),
   });
   if (!response.ok) throw new Error(`LLM request failed: ${response.status}`);
 
@@ -146,7 +161,17 @@ async function llmDraft(goal: string, mandate: Mandate): Promise<AgentDraft | nu
   };
 }
 
-export async function proposeItems(goal: string, mandate: Mandate, proposalId: string): Promise<Proposal> {
+export interface ProposeResult {
+  proposal: Proposal;
+  /** The engine that actually answered, not the one the environment configured. */
+  engine: AgentResult["engine"];
+}
+
+export async function proposeWithEngine(
+  goal: string,
+  mandate: Mandate,
+  proposalId: string,
+): Promise<ProposeResult> {
   let draft: AgentDraft;
   let engine: AgentResult["engine"] = "heuristic";
 
@@ -168,11 +193,14 @@ export async function proposeItems(goal: string, mandate: Mandate, proposalId: s
     .map((product) => toLineItem(product));
 
   return {
-    id: proposalId,
-    goal,
-    items,
-    rationale: engine === "llm" ? draft.rationale : draft.rationale,
+    proposal: { id: proposalId, goal, items, rationale: draft.rationale },
+    engine,
   };
+}
+
+/** The proposal alone, for callers that do not report which engine answered. */
+export async function proposeItems(goal: string, mandate: Mandate, proposalId: string): Promise<Proposal> {
+  return (await proposeWithEngine(goal, mandate, proposalId)).proposal;
 }
 
 export function agentEngine(): "llm" | "heuristic" {

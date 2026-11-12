@@ -172,3 +172,128 @@ describe("proposeItems heuristic fallback", () => {
     expect(decision.reasons.map((reason) => reason.code)).toContain("over_budget");
   });
 });
+
+describe("proposeItems with a configured model", () => {
+  const CONFIG = {
+    MANDATE_LLM_BASE_URL: "https://llm.example/v1",
+    MANDATE_LLM_API_KEY: "test-key",
+    MANDATE_LLM_MODEL: "test-model",
+  };
+
+  async function loadWith(env: Record<string, string>): Promise<AgentModule> {
+    for (const [key, value] of Object.entries(env)) process.env[key] = value;
+    vi.resetModules();
+    const fresh = (await import("./agent.js")) as AgentModule;
+    return fresh;
+  }
+
+  function restore(keys: string[]): void {
+    for (const key of keys) delete process.env[key];
+    vi.resetModules();
+  }
+
+  it("takes the model's SKUs and rationale, and reports the llm engine", async () => {
+    const keys = [...Object.keys(CONFIG), "MANDATE_LLM_SESSION_HEADER"];
+    const fresh = await loadWith({ ...CONFIG, MANDATE_LLM_SESSION_HEADER: "1" });
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({ skus: ["run-trail-2"], rationale: "Model picked the trail shoe." }),
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    try {
+      expect(fresh.agentEngine()).toBe("llm");
+      const proposal = await fresh.proposeItems("trail running shoes", mandate(), "prop-llm");
+
+      expect(proposal.items.map((item) => item.sku)).toEqual(["run-trail-2"]);
+      expect(proposal.rationale).toBe("Model picked the trail shoe.");
+
+      const [, init] = fetchSpy.mock.calls[0]!;
+      const headers = (init as RequestInit).headers as Record<string, string>;
+      expect(headers.Authorization).toBe("Bearer test-key");
+      expect(headers["x-opencode-session"]).toMatch(/^[0-9a-f-]{36}$/);
+      const body = JSON.parse(String((init as RequestInit).body));
+      expect(body.model).toBe("test-model");
+      expect(body.response_format).toEqual({ type: "json_object" });
+    } finally {
+      fetchSpy.mockRestore();
+      restore(keys);
+    }
+  });
+
+  it("sends no session header on a plain OpenAI-compatible endpoint", async () => {
+    const fresh = await loadWith(CONFIG);
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({ choices: [{ message: { content: JSON.stringify({ skus: ["run-trail-2"], rationale: "ok" }) } }] }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    try {
+      await fresh.proposeItems("trail running shoes", mandate(), "prop-plain");
+      const [, init] = fetchSpy.mock.calls[0]!;
+      const headers = (init as RequestInit).headers as Record<string, string>;
+      expect(headers["x-opencode-session"]).toBeUndefined();
+    } finally {
+      fetchSpy.mockRestore();
+      restore(Object.keys(CONFIG));
+    }
+  });
+
+  it("falls back to the heuristic planner when the model invents a SKU", async () => {
+    const fresh = await loadWith(CONFIG);
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({ choices: [{ message: { content: JSON.stringify({ skus: ["not-in-catalog"], rationale: "made up" }) } }] }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    try {
+      const proposal = await fresh.proposeItems("trail running shoes", mandate(), "prop-bogus");
+      expect(proposal.items.map((item) => item.sku)).not.toContain("not-in-catalog");
+      expect(proposal.items.length).toBeGreaterThan(0);
+      expect(proposal.rationale).not.toBe("made up");
+    } finally {
+      fetchSpy.mockRestore();
+      restore(Object.keys(CONFIG));
+    }
+  });
+});
+
+describe("proposeWithEngine", () => {
+  it("reports the heuristic engine when the model call fails, not the configured one", async () => {
+    const CONFIG = {
+      MANDATE_LLM_BASE_URL: "https://llm.example/v1",
+      MANDATE_LLM_API_KEY: "test-key",
+      MANDATE_LLM_MODEL: "test-model",
+    };
+    for (const [key, value] of Object.entries(CONFIG)) process.env[key] = value;
+    vi.resetModules();
+    const fresh = (await import("./agent.js")) as AgentModule;
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValue(new Error("upstream unavailable"));
+
+    try {
+      expect(fresh.agentEngine()).toBe("llm");
+      const result = await fresh.proposeWithEngine("trail running shoes", mandate(), "prop-down");
+      expect(result.engine).toBe("heuristic");
+      expect(result.proposal.items.length).toBeGreaterThan(0);
+    } finally {
+      fetchSpy.mockRestore();
+      for (const key of Object.keys(CONFIG)) delete process.env[key];
+      vi.resetModules();
+    }
+  });
+});
