@@ -70,6 +70,7 @@ export function App() {
   const [draftBecause, setDraftBecause] = useState<string>("");
   const [approveUrl, setApproveUrl] = useState<string | null>(null);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
+  const [paidOrder, setPaidOrder] = useState<{ totalCents: number; merchant: string } | null>(null);
   const lastCaptureAt = useRef(0);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const nextToastId = useRef(0);
@@ -189,6 +190,7 @@ export function App() {
         setPendingOrderId(body.order.id);
         setActionNotice("Order created. Approve it in PayPal, then capture the payment.");
       } else {
+        setPaidOrder({ totalCents: body.order.totalCents, merchant: body.order.merchant });
         setActionNotice(`Paid ${money(body.order.totalCents)} to ${body.order.merchant}.`);
       }
       await refresh();
@@ -337,6 +339,7 @@ export function App() {
     }
     setProposal(null);
     setDecision(null);
+    setPaidOrder(null);
     setOrders([]);
     setSelectedId("");
     setNotice("");
@@ -444,7 +447,12 @@ export function App() {
             <div className="card-head">
               <h2>Proposal</h2>
               <span className="outcome-slot" role="status" aria-live="polite" aria-atomic="true">
-                {decision && (
+                {paidOrder ? (
+                  <>
+                    <span className="sr-only">Settled: </span>
+                    <span className="outcome allow">Paid</span>
+                  </>
+                ) : decision && (
                   <>
                     <span className="sr-only">Decision: </span>
                     <span className={`outcome ${decision.outcome}`}>{OUTCOME_LABEL[decision.outcome]}</span>
@@ -495,7 +503,11 @@ export function App() {
 
                 <div className="actions">
                   <p className="notice" role="status" aria-live="polite" aria-atomic="true">{actionNotice}</p>
-                  {decision?.outcome === "deny" ? (
+                  {paidOrder ? (
+                    <p className="settled-line">
+                      Paid {money(paidOrder.totalCents)} to {paidOrder.merchant}. The ledger holds the row.
+                    </p>
+                  ) : decision?.outcome === "deny" ? (
                     <div className="blocked">Blocked by the mandate. No payment can be made for this cart.</div>
                   ) : approveUrl ? (
                     <>

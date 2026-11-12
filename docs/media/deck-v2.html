@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Mandate — pitch deck</title>
+<style>
+  :root{
+    --paper:#f4f6f9; --panel:#ffffff; --rule:#dfe4ec; --rule-2:#98a4b4;
+    --navy:#001c64; --ink:#0b1b33; --ink-2:#4a5568; --ink-3:#6b7686;
+    --blue:#0070ba; --blue-soft:#eaf3fb; --good:#1d7a4d; --warn:#8a5a00; --bad:#c4271f;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--paper);font-family:var(--sans);color:var(--ink)}
+  .slide{
+    width:1280px;height:720px;background:var(--panel);margin:0 auto 18px;
+    padding:56px 64px 48px;position:relative;border:1px solid var(--rule);
+    display:flex;flex-direction:column;
+  }
+  .eyebrow{font:500 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+  h1{font-size:44px;line-height:1.08;letter-spacing:-.02em;color:var(--navy);margin:14px 0 0;font-weight:650}
+  h2{font-size:30px;line-height:1.15;letter-spacing:-.01em;color:var(--navy);margin:10px 0 0;font-weight:620}
+  p{font-size:16px;line-height:1.55;color:var(--ink-2);margin:12px 0 0;max-width:58ch}
+  .big{font:600 56px/1 var(--mono);color:var(--navy);letter-spacing:-.02em}
+  .figures{display:flex;gap:40px;margin-top:auto}
+  .figure{flex:1;border-top:1px solid var(--rule-2);padding-top:10px}
+  .figure b{display:block;font:600 30px/1.1 var(--mono);color:var(--navy)}
+  .figure span{display:block;font-size:12.5px;color:var(--ink-3);margin-top:6px}
+  .rule{height:1px;background:var(--rule);margin:22px 0}
+  .kicker{display:inline-block;border:1.5px solid var(--blue);color:var(--blue);
+    border-radius:2px;padding:5px 9px;font:600 12px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase}
+  .kicker.bad{border-color:var(--bad);color:var(--bad)}
+  .kicker.good{border-color:var(--good);color:var(--good)}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:44px;margin-top:18px;align-items:start}
+  .cols.narrow{grid-template-columns:0.95fr 1.05fr}
+  ul{margin:10px 0 0;padding-left:18px}
+  li{font-size:15px;line-height:1.5;color:var(--ink-2);margin:7px 0}
+  li b{color:var(--ink)}
+  .showcase{display:grid;grid-template-columns:0.44fr 0.56fr;gap:40px;margin-top:18px;align-items:start}
+  .shot{width:100%;border:1px solid var(--rule-2);border-radius:3px;display:block}
+  .showcase ul{margin-top:0}
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:20px}
+  .step{border-top:2px solid var(--navy);padding-top:10px}
+  .step em{font:500 11px/1 var(--mono);color:var(--ink-3);font-style:normal;letter-spacing:.1em}
+  .step strong{display:block;margin-top:6px;color:var(--navy);font-size:16px}
+  .step span{display:block;margin-top:6px;font-size:13.5px;color:var(--ink-2);line-height:1.45}
+  .foot{position:absolute;left:64px;right:64px;bottom:22px;display:flex;justify-content:space-between;
+    align-items:baseline;font:500 10.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  .foot .page{color:var(--ink-2)}
+  code{font:500 13.5px/1.4 var(--mono);background:var(--blue-soft);border:1px solid #cfe3f5;
+    border-radius:3px;padding:2px 6px;color:var(--navy)}
+  .quote{border-left:3px solid var(--blue);padding:2px 0 2px 16px;margin-top:18px;
+    font-size:20px;line-height:1.4;color:var(--navy)}
+  .table{width:100%;border-collapse:collapse;margin-top:14px}
+  .table th{text-align:left;font:500 11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;
+    color:var(--ink-3);padding:0 0 7px;border-bottom:1px solid var(--rule-2)}
+  .table td{padding:9px 0;border-bottom:1px solid var(--rule);font-size:14px;color:var(--ink-2)}
+  .table td:last-child{text-align:right;font-family:var(--mono);color:var(--ink)}
+  @media print{
+    @page{size:1280px 720px;margin:0}
+    html,body{background:#fff}
+    .slide{margin:0;border:0;page-break-after:always;break-after:page}
+    .slide:last-child{page-break-after:auto}
+  }
+</style>
+</head>
+<body>
+
+<!-- 1 · COVER -->
+<section class="slide">
+  <div class="eyebrow">PayPal AI Hackathon 2026 · Best Use of Agentic Commerce</div>
+  <h1>Mandate</h1>
+  <p style="font-size:20px;color:var(--ink);max-width:44ch">
+    Spending guardrails for AI shopping agents, settled with PayPal.
+  </p>
+  <div class="rule"></div>
+  <p class="quote">The model proposes. The code disposes.</p>
+  <div class="figures">
+    <div class="figure"><b>54</b><span>tests, policy through PayPal</span></div>
+    <div class="figure"><b>$115.00</b><span>refused above the threshold, then settled in sandbox</span></div>
+    <div class="figure"><b>0</b><span>credentials needed to run the demo</span></div>
+  </div>
+  <div class="foot"><span>github.com/lgf2111/mandate · MIT</span><span class="page">01</span></div>
+</section>
+
+<!-- 2 · THE GAP -->
+<section class="slide">
+  <div class="eyebrow">Judging · Potential impact</div>
+  <h2>An agent that can buy needs authority.<br>Today that authority is a card.</h2>
+  <div class="cols">
+    <div>
+      <p>Give the agent a card and it can spend anywhere the card clears. The controls
+      live at the bank: a monthly cap, maybe a merchant lock on a virtual card. Coarse,
+      set elsewhere, invisible to the agent, and silent about <em>this</em> cart.</p>
+      <p>Withhold the card and the agent researches, compares and fills a basket — then
+      hands the last step back to you, because you are not giving software your
+      credential.</p>
+      <div class="quote">You can cap the card at your bank. You cannot tell the agent what it may buy.</div>
+    </div>
+    <div>
+      <table class="table">
+        <tr><th>Control</th><th>Where it lives</th></tr>
+        <tr><td>Monthly card limit</td><td>Issuer</td></tr>
+        <tr><td>Merchant lock</td><td>Virtual card</td></tr>
+        <tr><td>Per-cart rule with a reason</td><td>Mandate</td></tr>
+      </table>
+      <p style="font-size:14px;margin-top:18px">A person already writes these limits down — in a note on
+      their phone, which the merchant ignores. Mandate makes them executable.</p>
+    </div>
+  </div>
+  <div class="foot"><span>Problem</span><span class="page">02</span></div>
+</section>
+
+<!-- 3 · WHO IT'S FOR -->
+<section class="slide">
+  <div class="eyebrow">Judging · Potential impact</div>
+  <h2>For people who delegate a bounded purchase,<br>not for people who want to fill in forms.</h2>
+  <div class="cols">
+    <div>
+      <p><b>The audience:</b> someone buying a specific, bounded thing — the week's
+      groceries, school supplies, a replacement part — who will let an agent transact
+      but will not hand over a blank card.</p>
+      <p><b>What they actually do:</b> state the goal in one sentence. The app drafts the
+      limits from the catalogue. They look at one line and approve it, or change one
+      number. Seven fields exist, but nobody has to open them.</p>
+    </div>
+    <div>
+      <div class="steps">
+        <div class="step"><em>01</em><strong>Say the goal</strong><span>“Trail shoes for the weekend, under the cap.”</span></div>
+        <div class="step"><em>02</em><strong>Approve the limits</strong><span>Budget, cap, threshold, merchants — drafted, one tap.</span></div>
+        <div class="step"><em>03</em><strong>Let it buy</strong><span>Every cart is checked; nothing moves without the rules.</span></div>
+      </div>
+      <p style="font-size:14px;margin-top:20px">The demo shows the same flow at desktop size. The
+      form is behind a disclosure because enforcement, not authoring, is the product.</p>
+    </div>
+  </div>
+  <div class="foot"><span>Audience</span><span class="page">03</span></div>
+</section>
+
+<!-- 4 · THE PRODUCT -->
+<section class="slide">
+  <div class="eyebrow">Judging · Design</div>
+  <h2>One screen, three decisions, no wizard.</h2>
+  <div class="showcase">
+    <div>
+      <ul>
+        <li><b>Say the goal.</b> One sentence; the app does the authoring.</li>
+        <li><b>Approve the limits.</b> Budget, cap, threshold, merchant, categories — drafted, then one tap.</li>
+        <li><b>See the decision.</b> The stamp, the total and the reason sit in one card; the ledger is the record.</li>
+      </ul>
+      <p style="font-size:14px">The seven fields stay one click away for anyone who wants them, which is what
+      makes the one-tap path honest.</p>
+    </div>
+    <img class="shot" src="deck-v2/limits.png" alt="The app after the limits are drafted: budget, cap, approval threshold, merchant and categories, with Use these limits" />
+  </div>
+  <div class="foot"><span>Product · the drafted limits, one approval</span><span class="page">04</span></div>
+</section>
+
+<!-- 5 · PAYPAL -->
+<section class="slide">
+  <div class="eyebrow">Judging · Technological implementation</div>
+  <h2>PayPal is the money path, not a badge.</h2>
+  <div class="cols narrow">
+    <div>
+      <ul>
+        <li><b>OAuth 2.0</b> client-credentials token, cached until expiry.</li>
+        <li><b>Orders v2</b> create with <code>intent: CAPTURE</code> and integer-cent amounts.</li>
+        <li><b>Capture</b> happens after the buyer approves; the app captures on return.</li>
+        <li>The server re-evaluates policy at checkout, so calling the endpoint directly cannot skip a rule.</li>
+      </ul>
+      <p style="font-size:14px">Sandbox is the environment. Demo mode is a branch at the PayPal
+      boundary, not a mock of the app.</p>
+    </div>
+    <div>
+      <table class="table">
+        <tr><th>Observed in sandbox</th><th>Value</th></tr>
+        <tr><td>Order created</td><td>57874901BY376944J</td></tr>
+        <tr><td>Capture id</td><td>5KT45525KN917902M</td></tr>
+        <tr><td>Captured before approval</td><td>422 ORDER_NOT_APPROVED</td></tr>
+        <tr><td>Amount</td><td>115.00 USD</td></tr>
+      </table>
+      <p style="font-size:13.5px;margin-top:14px">PayPal itself refused a premature capture. That
+      refusal is the proof the integration is live.</p>
+    </div>
+  </div>
+  <div class="foot"><span>PayPal integration</span><span class="page">05</span></div>
+</section>
+
+<!-- 6 · AI -->
+<section class="slide">
+  <div class="eyebrow">Judging · Technological implementation</div>
+  <h2>The model chooses. It never decides.</h2>
+  <div class="cols narrow">
+    <div>
+      <ul>
+        <li><b>What the model does:</b> picks the item for the goal and writes the rationale, from a
+        candidate list already filtered by merchant, category and cap.</li>
+        <li><b>What it cannot do:</b> set a price, invent a SKU, or authorise anything.</li>
+        <li><b>Evidence:</b> every proposal carries <code>engine</code> — <code>llm</code> only when the model
+        really answered, <code>heuristic</code> when the fallback took over.</li>
+        <li><b>Model:</b> deepseek-v4.1-flash through an OpenAI-compatible gateway.</li>
+      </ul>
+    </div>
+    <div>
+      <table class="table">
+        <tr><th>Governance in code</th><th>Where</th></tr>
+        <tr><td>Candidates pre-filtered by the mandate</td><td>agent.ts</td></tr>
+        <tr><td>SKUs validated against the catalogue</td><td>agent.ts</td></tr>
+        <tr><td>Prices come from the catalogue only</td><td>catalog.ts</td></tr>
+        <tr><td>Decision made by a pure function</td><td>policy.ts</td></tr>
+      </table>
+      <p style="font-size:13.5px;margin-top:14px">A model that invents a SKU falls back to the
+      deterministic planner, and a test proves it.</p>
+    </div>
+  </div>
+  <div class="foot"><span>AI in the experience</span><span class="page">06</span></div>
+</section>
+
+<!-- 7 · TRUST BOUNDARY -->
+<section class="slide">
+  <div class="eyebrow">Judging · Innovation / idea</div>
+  <h2>One function decides. Nothing else does.</h2>
+  <div class="cols">
+    <div>
+      <p><code>evaluate(proposal, mandate, now)</code> is pure: no I/O, no network, no wall-clock
+      read on the decision. It returns an outcome, totals, the remaining budget, and reasons
+      with codes and severities.</p>
+      <p>Checkout reloads the proposal and the mandate and runs it again, so a stale or forged
+      decision is impossible. A denied cart answers <code>409 denied_by_policy</code> even when the
+      caller sends <code>approved: true</code>.</p>
+    </div>
+    <div>
+      <div class="kicker bad">Deny · four codes at once</div>
+      <table class="table">
+        <tr><td>over_budget</td><td>block</td></tr>
+        <tr><td>over_transaction_cap</td><td>block</td></tr>
+        <tr><td>merchant_blocked</td><td>block</td></tr>
+        <tr><td>category_not_allowed</td><td>block</td></tr>
+      </table>
+      <p style="font-size:13.5px;margin-top:14px">Audit needs a code, not a paragraph:
+      <code>over_budget</code> is greppable and storable with the order.</p>
+    </div>
+  </div>
+  <div class="foot"><span>The trust boundary</span><span class="page">07</span></div>
+</section>
+
+<!-- 8 · THE REFUSAL, ON SCREEN -->
+<section class="slide">
+  <div class="eyebrow">Judging · Presentation</div>
+  <h2>The cart that lands on the line.</h2>
+  <div class="showcase">
+    <div>
+      <ul>
+        <li>Two items, one merchant, <b>$115.00</b>.</li>
+        <li>Under the $150 cap, inside the $200 budget, and above the $100 approval line.</li>
+        <li>The stamp says <b>approval required</b>; the reason is a sentence a person can read.</li>
+        <li>Nothing has moved. No order exists until a human acts.</li>
+      </ul>
+    </div>
+    <img class="shot" src="deck-v2/refusal.png" alt="The proposal: two items totalling $115, an APPROVAL REQUIRED stamp, and the reason: above the $100 auto-approve threshold" />
+  </div>
+  <div class="foot"><span>Product · approval required, with the reason on screen</span><span class="page">08</span></div>
+</section>
+
+<!-- 9 · SETTLED -->
+<section class="slide">
+  <div class="eyebrow">Judging · Presentation</div>
+  <h2>Approved, settled, and written down.</h2>
+  <div class="showcase">
+    <div>
+      <ul>
+        <li>The stamp becomes <b>PAID</b>; the amount is stated in the same slot.</li>
+        <li>One ledger row: merchant, amount, <code>captured</code>.</li>
+        <li>The budget decrements: <b>$115.00 of $200.00</b>, so the next cart meets the rule that remains.</li>
+        <li>In sandbox the same path produces a real capture id.</li>
+      </ul>
+    </div>
+    <img class="shot" src="deck-v2/paid.png" alt="After approval: PAID stamp, the payment line, and one ledger row captured in demo mode" />
+  </div>
+  <div class="foot"><span>Product · the ledger keeps the row</span><span class="page">09</span></div>
+</section>
+
+<!-- 10 · PROOF -->
+<section class="slide">
+  <div class="eyebrow">Judging · Technological implementation</div>
+  <h2>What is checked, not claimed.</h2>
+  <div class="cols">
+    <div>
+      <table class="table">
+        <tr><th>Suite</th><th>Tests</th></tr>
+        <tr><td>Policy engine (cent boundaries, multi-reason denies)</td><td>16</td></tr>
+        <tr><td>HTTP API (approval gate, policy bypass)</td><td>15</td></tr>
+        <tr><td>Agent (model path, fallbacks, invented SKUs)</td><td>12</td></tr>
+        <tr><td>Catalogue search</td><td>6</td></tr>
+        <tr><td>PayPal client</td><td>5</td></tr>
+        <tr><td><b>Total</b></td><td><b>54</b></td></tr>
+      </table>
+    </div>
+    <div>
+      <ul>
+        <li>CI green on the head commit: typecheck, tests, build.</li>
+        <li>Sandbox capture recorded with a real capture id.</li>
+        <li>No credentials needed: the whole demo runs in demo mode and says so on every row.</li>
+        <li>One container builds, runs and serves the app and the pages.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span>Proof</span><span class="page">10</span></div>
+</section>
+
+<!-- 11 · WHY DIFFERENT -->
+<section class="slide">
+  <div class="eyebrow">Judging · Innovation / idea</div>
+  <h2>Not another shopping agent.<br>The authority layer it was missing.</h2>
+  <div class="cols">
+    <div>
+      <p>Most agentic-commerce demos show an agent buying something. Mandate shows the
+      moment before: a deterministic engine ruling on a cart, with reasons a person can
+      read and a machine can store.</p>
+      <p>The novel part is not the model. It is that the model has no vote, and that the
+      refusal survives being repeated, replayed or called directly.</p>
+    </div>
+    <div>
+      <div class="kicker good">Same goal, second cart</div>
+      <p style="margin-top:12px"><code>Cart is $94.00 but only $85.00 remains.</code></p>
+      <p style="font-size:13.5px">A virtual card with a $200 limit cannot say that. A per-cart policy
+      can, and it can say it again for the next cart.</p>
+    </div>
+  </div>
+  <div class="foot"><span>Why it is different</span><span class="page">11</span></div>
+</section>
+
+<!-- 12 · CLOSE -->
+<section class="slide">
+  <div class="eyebrow">Judging · Presentation</div>
+  <h2>Run it in thirty seconds.</h2>
+  <div class="rule"></div>
+  <p style="font-family:var(--mono);font-size:15px;color:var(--navy)">
+    git clone https://github.com/lgf2111/mandate<br>
+    npm install &amp;&amp; npm run dev<br>
+    open http://localhost:5173
+  </p>
+  <p>No credentials. Demo orders are simulated and labelled. With a PayPal sandbox app and
+  an LLM key in <code>.env</code>, the same build creates real Orders v2 orders and asks a real model.</p>
+  <div class="figures">
+    <div class="figure"><b>1</b><span>pure function decides</span></div>
+    <div class="figure"><b>2</b><span>platforms: PayPal Orders v2 + the web app</span></div>
+    <div class="figure"><b>0</b><span>rules the model can rewrite</span></div>
+  </div>
+  <div class="foot"><span>github.com/lgf2111/mandate · MIT</span><span class="page">12</span></div>
+</section>
+
+</body>
+</html>

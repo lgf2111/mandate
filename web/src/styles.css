@@ -273,3 +273,6 @@ details.rules[open] > summary { margin-bottom: 10px; }
   padding: 0 2px; margin-left: auto;
 }
 .toast-close:hover { color: var(--ink); }
+
+/* After settlement the card states the fact instead of asking again. */
+.settled-line { margin: 4px 0 0; font-size: 14px; font-weight: 600; color: var(--good); }

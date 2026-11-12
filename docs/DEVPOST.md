@@ -63,8 +63,13 @@ TypeScript, Node.js, Express, React, Vite, Zod, Vitest, PayPal Orders v2 API, Pa
 
 ## Try it
 
+**Hosted demo:** https://jeffs-macbook-pro.tail895d47.ts.net — the app is live, with the
+PayPal sandbox app configured. Press **Ask the agent**, then **Approve and pay**.
+
+Or run it locally:
+
 ```bash
-git clone <this repo> mandate && cd mandate
+git clone https://github.com/lgf2111/mandate && cd mandate
 npm install
 npm run dev
 ```

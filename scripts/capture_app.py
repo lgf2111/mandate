@@ -1,19 +1,17 @@
-"""Capture the running app for the pitch video: 1920x1080, scripted clicks.
+"""Capture the running app for the pitch video: scripted clicks, one frame at a time.
 
-Needs a server (PORT=8787, demo mode) and the dev web server on 5173. Run it inside
-mcr.microsoft.com/playwright/python with --network host; the PNG frames land in /out
-and ffmpeg makes the clip.
+Needs the API on 8787 in demo mode and the dev web server on 5173. Run it inside
+mcr.microsoft.com/playwright/python with --network host; PNG frames land in /out and
+ffmpeg assembles them on the host, because the image ships no ffmpeg:
 
-Standard library + ffmpeg only: the Playwright container must stay untouched. The
-page is stepped through a scripted list of scroll positions and zoom levels, and a
-frame is screenshotted after every step; ffmpeg assembles the PNGs into an MP4.
+    python3 capture_app.py
+    ffmpeg -framerate 30 -i /out/frames/f%05d.png -c:v libx264 -crf 16 mandate-clip.mp4
 
-    python3 mandate_clip.py                 # writes /out/mandate-clip.mp4
+Nothing is cropped or zoomed here: framing is the film's job, so every frame is the
+whole 1440x900 viewport at 100%, which is what a person actually sees.
 """
 
 import json
-import math
-import subprocess
 import urllib.request
 from pathlib import Path
 
@@ -24,7 +22,7 @@ API = "http://127.0.0.1:8787"
 OUT = Path("/out")
 FRAMES = OUT / "frames"
 FPS = 30
-W, H = 1920, 1080
+W, H = 1440, 900
 
 
 def api(path, method="GET", body=None):
@@ -34,23 +32,6 @@ def api(path, method="GET", body=None):
     )
     with urllib.request.urlopen(request, timeout=30) as response:
         return json.loads(response.read() or b"{}")
-
-
-def ease(t):
-    return 0.5 - 0.5 * math.cos(math.pi * max(0.0, min(1.0, t)))
-
-
-def zoom_transform(page, level):
-    """Scale the whole document about the top-left, keeping the layout width."""
-    page.evaluate(
-        """(z) => {
-            const b = document.body;
-            b.style.transformOrigin = '0 0';
-            b.style.transform = `scale(${z})`;
-            b.style.width = (100 / z) + '%';
-        }""",
-        level,
-    )
 
 
 def main():
@@ -65,69 +46,58 @@ def main():
         page = browser.new_page(viewport={"width": W, "height": H}, device_scale_factor=1)
         page.goto(APP + "/", wait_until="networkidle")
         page.wait_for_timeout(1200)
-
         shots = 0
 
-        def grab(count, dx=0.0):
+        def grab(count):
             nonlocal shots
             for _ in range(count):
+                # Clicking scrolls the page; every frame is shot from the top so the
+                # header, the card headers and their stamps are all in view.
+                page.evaluate("window.scrollTo(0, 0)")
+                page.wait_for_timeout(34)
                 page.screenshot(path=str(FRAMES / f"f{shots:05d}.png"))
                 shots += 1
-                if dx:
-                    page.mouse.wheel(0, dx)
 
-        # 1. The app at rest: the mandate on the left, nothing proposed yet.
+        def click(name, timeout=45_000):
+            page.get_by_role("button", name=name, exact=False).first.click(timeout=timeout)
+
+        def wait_text(text, timeout=60_000):
+            page.get_by_text(text, exact=False).first.wait_for(timeout=timeout)
+
+        # 1. At rest: one question, no proposal.
         grab(45)
 
-        # 2. Ask the agent; the $115 cart lands in approval-required.
-        page.get_by_role("button", name="Ask the agent").click()
-        page.get_by_text("Approve and pay", exact=False).first.wait_for(timeout=30_000)
+        # 2. Type the goal; the app drafts the limits from it.
+        page.fill("#goal-input", "")
+        page.type("#goal-input", "trail running shoes under the cap", delay=18)
+        grab(30)
+        click("Draft the limits")
+        wait_text("Use these limits")
+        grab(75)
+
+        # 3. One approval, then the agent's cart lands exactly on the threshold.
+        click("Use these limits")
+        page.wait_for_timeout(600)
+        grab(30)
+        click("Ask the agent")
+        wait_text("APPROVAL REQUIRED")
+        grab(105)
+
+        # 4. Pay in demo mode; the ledger takes the row.
+        click("Approve and pay")
+        wait_text("Paid $")
+        grab(85)
         grab(30)
 
-        # 3. Push in on the decision card and hold.
-        for step in range(60):
-            zoom_transform(page, 1.0 + 0.55 * ease(step / 59))
-            page.wait_for_timeout(16)
-            grab(1)
-        grab(60)
-
-        # 4. Pull back out, then approve and pay.
-        for step in range(30):
-            zoom_transform(page, 1.55 - 0.55 * ease(step / 29))
-            page.wait_for_timeout(16)
-            grab(1)
-        grab(15)
-
-        page.get_by_role("button", name="Approve and pay").click()
-        page.get_by_text("Paid $115.00", exact=False).first.wait_for(timeout=30_000)
-        grab(60)
-
-        # 5. Same goal again: the budget refuses the second cart.
-        page.get_by_role("button", name="Ask the agent").click()
-        page.get_by_text("Blocked by the mandate", exact=False).first.wait_for(timeout=30_000)
-        grab(45)
-        for step in range(45):
-            zoom_transform(page, 1.0 + 0.45 * ease(step / 44))
-            page.wait_for_timeout(16)
-            grab(1)
-        grab(75)
+        # 5. Same goal, second cart: the budget refuses it.
+        click("Ask the agent")
+        wait_text("Blocked by the mandate")
+        grab(120)
 
         browser.close()
 
     print("frames:", shots)
-    subprocess.run(
-        [
-            "ffmpeg", "-y", "-loglevel", "error",
-            "-framerate", str(FPS),
-            "-i", str(FRAMES / "f%05d.png"),
-            "-c:v", "libx264", "-preset", "medium", "-crf", "18",
-            "-pix_fmt", "yuv420p", "-r", str(FPS),
-            "-vf", "scale=1920:1080",
-            str(OUT / "mandate-clip.mp4"),
-        ],
-        check=True,
-    )
-    print("wrote", OUT / "mandate-clip.mp4")
+    print(f"now run: ffmpeg -framerate {FPS} -i {FRAMES}/f%05d.png -c:v libx264 -crf 16 mandate-clip.mp4")
 
 
 if __name__ == "__main__":
