@@ -13,10 +13,12 @@ A user edits a mandate — $200 budget, $150 per-transaction cap, approval above
 The agent returns a cart and a rationale. Before payment can happen, the policy engine rules:
 
 - **allow** — every rule fits. **Pay with PayPal** creates an Orders v2 order, then captures (immediately in demo) and writes a ledger row.
-- **require_approval** — legal but above the threshold. The button becomes **Approve & pay**, and the server returns `409 approval_required` unless the request carries `approved: true`; the gate is server-side, not a disabled button.
+- **require_approval** — legal but above the threshold. The card says so and offers one action: **Approve and pay** opens PayPal, and the app captures the moment you return to the tab. The server returns `409 approval_required` unless the request carries `approved: true`; the gate is server-side, not a disabled button.
 - **deny** — no payment path. The UI shows "Blocked by the mandate" and every reason, not just the first: a $990 jewellery cart from SketchySports returns `over_budget`, `over_transaction_cap`, `merchant_blocked` and `category_not_allowed` at once.
 
 Multi-merchant carts are denied (`split_merchant`): one order, one merchant, one ledger row.
+
+Every result is also spoken in plain language: a toast confirms an order, a save or a settlement, and failures carry the next step ("PayPal says this order is not approved yet. Approve it there, then retry.") rather than an error code.
 
 ## How we built it
 
@@ -39,7 +41,7 @@ The agent proposes; `evaluate()` disposes.
 
 ## Accomplishments
 
-52 tests pass — 16 on the policy engine, 13 on the HTTP API, 12 on the agent (the model path, its session header and its fallbacks), 6 on catalog search, 5 on the PayPal client — covering cent-exact boundaries, the block list beating the allow list, unparseable expiry treated as expired, multi-reason denials, and checkout refusing unapproved or denied carts. The full path runs end to end: propose → evaluate → approve → order → capture → ledger, with the budget decrementing between decisions. It runs with zero credentials, and simulated settlements are labelled demo. `npm run typecheck`, `npm test` and `npm run build` run in GitHub Actions.
+54 tests pass — 16 on the policy engine, 15 on the HTTP API, 12 on the agent (the model path, its session header and its fallbacks), 6 on catalog search, 5 on the PayPal client — covering cent-exact boundaries, the block list beating the allow list, unparseable expiry treated as expired, multi-reason denials, and checkout refusing unapproved or denied carts. The full path runs end to end: propose → evaluate → approve → order → capture → ledger, with the budget decrementing between decisions. It runs with zero credentials, and simulated settlements are labelled demo. `npm run typecheck`, `npm test` and `npm run build` run in GitHub Actions.
 
 ## What we learned
 
@@ -74,4 +76,4 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173 — no credentials required; orders are simulated and labelled `demo`. For sandbox orders, copy `.env.example` to `.env` and add `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET`; `npm test` runs the 52 tests.
+Open http://localhost:5173 — no credentials required; orders are simulated and labelled `demo`. For sandbox orders, copy `.env.example` to `.env` and add `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET`; `npm test` runs the 54 tests.

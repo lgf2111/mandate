@@ -71,9 +71,12 @@ The important design choice: **the model never decides whether to pay.** It prop
 ## Tests
 
 ```bash
-npm test        # policy engine, 16 cases incl. boundaries and multi-reason denials
+npm test        # 54 tests: policy 16, HTTP API 15, agent 12, catalog 6, PayPal 5
 npm run typecheck
+npm run build
 ```
+
+CI runs all three on every push.
 
 ## Deploy
 
@@ -90,14 +93,12 @@ npm run typecheck
 | `MANDATE_LLM_MODEL` | `deepseek-v4.1-flash` | Model id |
 | `PORT` | `8787` | API port |
 
-## Slides and video
+## Pitch
 
-- **`docs/media/deck.html`** — the deck, 9 slides, 1920×1080. Open in a browser; arrow keys, space or click advance.
-- **`docs/media/mandate-deck.pdf`** — same deck as PDF, printed from that HTML.
-- **`docs/media/mandate-deck.pptx`** — PowerPoint version, same content, speaker notes carry the narration.
-- **`docs/media/mandate-pitch-v3.mp4`** — 1:27: the twelve slides narrated, then the app at full frame — the goal, the drafted limits, the approval line, the settlement and the ledger row.
-- **`docs/media/deck-v2.html`** / **`deck-v2.pdf`** — the twelve-slide pitch, one slide per judging criterion.
-- Regenerate the footage: `scripts/capture_app.py` (Playwright, inside `mcr.microsoft.com/playwright/python`, writes PNG frames) then `scripts/build_footage_video.py` (framing, narration and MP4). The deck's own narration is `scripts/build_video.sh`.
+- **`docs/media/deck-v2.html`** / **`deck-v2.pdf`** — twelve slides, one per judging criterion: impact, design, PayPal integration, the model's limits, the trust boundary, proof, and why a per-cart policy is not a capped card.
+- **`docs/media/pitch-script.md`** — the narration, timed to those slides, with the four demo beats.
+- **`docs/media/teleprompter.html`** — the same lines, auto-scrolling.
+- Regenerate the footage: `scripts/capture_app.py` drives the app in a Playwright container and writes PNG frames; assemble them with `ffmpeg -framerate 30 -i frames/f%05d.png -c:v libx264 -crf 18 out.mp4`.
 
 ## Limits (honest ones)
 
