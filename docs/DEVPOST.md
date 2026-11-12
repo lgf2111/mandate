@@ -23,7 +23,7 @@ Multi-merchant carts are denied (`split_merchant`): one order, one merchant, one
 The agent proposes; `evaluate()` disposes.
 
 - **`src/policy.ts`** — `evaluate(proposal, mandate, now)` is pure: no I/O, no network, no wall-clock read on the decision — `now` is passed in (it defaults to `new Date()` only so the server can call it without one). It returns an outcome, totals, remaining budget, and reasons with codes and severities.
-- **`src/agent.ts`** — proposes only. Candidates are pre-filtered to mandate-permissible items; the model returns SKUs, validated against that list before becoming line items. Any failure (no credentials, non-200, timeout, invalid SKUs) falls back to a deterministic keyword planner, so the demo never needs a model.
+- **`src/agent.ts`** — proposes only. Candidates are pre-filtered to mandate-permissible items; the model returns SKUs, validated against that list before becoming line items. With `MANDATE_LLM_*` set the agent runs on a real model (verified against `deepseek-v4.1-flash` through an OpenAI-compatible gateway), and `/api/proposals` reports which engine actually answered. Any failure (no credentials, non-200, timeout, invalid SKUs) falls back to a deterministic keyword planner, so the demo never needs a model.
 - **`src/server.ts`** — Express. `/api/proposals` evaluates; `/api/checkout` reloads proposal and mandate and re-evaluates before touching PayPal, so calling checkout directly cannot skip policy.
 - **`src/paypal.ts`** — OAuth2 token cached until expiry; Orders v2 create with `intent: CAPTURE` and integer-cent amounts; capture on return. Demo mode lives at this boundary: simulated order IDs, immediate capture, ledger rows marked `provider: "demo"`.
 
