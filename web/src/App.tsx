@@ -258,9 +258,9 @@ export function App() {
         </div>
         <div className="badges">
           <span className={`badge ${health?.paypal === "live" ? "live" : ""}`}>
-            PayPal: {health?.paypal ?? "…"}
+            PayPal {health?.paypal === "live" ? "sandbox" : "demo"}
           </span>
-          <span className="badge">agent: {health?.agent ?? "…"}</span>
+          <span className="badge">model {health?.agent === "llm" ? "on" : "off"}</span>
           <button
             type="button"
             className="ghost"
@@ -277,7 +277,7 @@ export function App() {
           <div className="card">
             <div className="card-head">
               <h2><span className="step">1</span> What do you want to buy?</h2>
-              <span className="muted mono">{engine ? `engine ${engine}` : "engine pending"}</span>
+              <span className="muted mono">{engine ? `planner: ${engine === "llm" ? "model" : "rules"}` : ""}</span>
             </div>
             <label className="sr-only" htmlFor="goal-input">Shopping goal</label>
             <textarea
@@ -291,13 +291,13 @@ export function App() {
               One sentence. The app drafts the limits; you approve them before anything is bought.
             </p>
             <div className="chips" role="group" aria-label="Example goals">
-              {EXAMPLES.map((example) => (
+              {EXAMPLES.filter((example) => example !== goal).map((example) => (
                 <button key={example} type="button" className="chip" onClick={() => setGoal(example)}>{example}</button>
               ))}
             </div>
             <div className="goal-actions">
-              <button type="button" className="primary" disabled={busy} onClick={draftRules}>
-                {busy ? "Working…" : "Draft the limits"}
+              <button type="button" className="ghost" disabled={busy} onClick={draftRules}>
+                {busy ? "Working…" : "Draft the limits from this goal"}
               </button>
             </div>
             <p className="notice" role="status" aria-live="polite" aria-atomic="true">{notice}</p>
@@ -306,7 +306,6 @@ export function App() {
           <div className="card">
             <div className="card-head">
               <h2><span className="step">2</span> Check the limits</h2>
-              {selected && <span className="muted mono" title={selected.id}>{selected.id.slice(0, 8)}</span>}
             </div>
             {draft ? (
               <>
