@@ -57,6 +57,10 @@ export function App() {
   const [health, setHealth] = useState<{ paypal: string; agent: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string>("");
+  // Checkout and capture speak next to the buttons that caused them. The goal
+  // notice lives at the bottom of the other column, ~600px away and below the
+  // fold at 1440x900, so a failed capture used to fail silently on screen.
+  const [actionNotice, setActionNotice] = useState<string>("");
   const [approveUrl, setApproveUrl] = useState<string | null>(null);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
 
@@ -107,7 +111,7 @@ export function App() {
   async function checkout(approved: boolean) {
     if (!selected || !proposal) return;
     setBusy(true);
-    setNotice("");
+    setActionNotice("");
     try {
       const response = await fetch("/api/checkout", {
         method: "POST",
@@ -116,15 +120,15 @@ export function App() {
       });
       const body = await response.json();
       if (!response.ok) {
-        setNotice(body.error === "approval_required" ? "Approval is required above the threshold." : (body.error ?? "Checkout failed."));
+        setActionNotice(body.error === "approval_required" ? "Approval is required above the threshold." : (body.error ?? "Checkout failed."));
         return;
       }
       if (body.approveUrl) {
         setApproveUrl(body.approveUrl);
         setPendingOrderId(body.order.id);
-        setNotice("Order created. Approve it in PayPal, then capture the payment.");
+        setActionNotice("Order created. Approve it in PayPal, then capture the payment.");
       } else {
-        setNotice(`Paid ${money(body.order.totalCents)} to ${body.order.merchant}.`);
+        setActionNotice(`Paid ${money(body.order.totalCents)} to ${body.order.merchant}.`);
       }
       await refresh();
     } finally {
@@ -137,12 +141,12 @@ export function App() {
     setBusy(true);
     const response = await fetch(`/api/orders/${pendingOrderId}/capture`, { method: "POST" });
     if (response.ok) {
-      setNotice("Payment captured.");
+      setActionNotice("Payment captured.");
       setApproveUrl(null);
       setPendingOrderId(null);
       await refresh();
     } else {
-      setNotice("Payment capture failed. Check the order in PayPal and try again.");
+      setActionNotice("Payment capture failed. Check the order in PayPal and try again.");
     }
     setBusy(false);
   }
@@ -307,6 +311,7 @@ export function App() {
                 )}
 
                 <div className="actions">
+                  <p className="notice" role="status" aria-live="polite" aria-atomic="true">{actionNotice}</p>
                   {decision?.outcome === "deny" ? (
                     <div className="blocked">Blocked by the mandate. No payment can be made for this cart.</div>
                   ) : (
