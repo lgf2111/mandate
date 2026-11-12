@@ -214,7 +214,9 @@ describe("proposeItems with a configured model", () => {
       expect(fresh.agentEngine()).toBe("llm");
       const proposal = await fresh.proposeItems("trail running shoes", mandate(), "prop-llm");
 
-      expect(proposal.items.map((item) => item.sku)).toEqual(["run-trail-2"]);
+      // The model picks the main item; the mandate's bundle rule adds the
+      // same-store accessory, so the cart stays deterministic.
+      expect(proposal.items.map((item) => item.sku)).toEqual(["run-trail-2", "run-sock-3pk"]);
       expect(proposal.rationale).toBe("Model picked the trail shoe.");
 
       const [, init] = fetchSpy.mock.calls[0]!;

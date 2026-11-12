@@ -94,10 +94,7 @@ async function llmDraft(goal: string, mandate: Mandate): Promise<AgentDraft | nu
 
   const system = [
     "You are a shopping agent operating under a spending mandate.",
-    "Choose the fewest items that satisfy the goal without violating the mandate.",
-    "When the goal asks for gear and the candidate list holds an accessory from the same",
-    "merchant priced at or below half the main item and inside the remaining budget, include",
-    "it so the cart is complete: one merchant, one basket, no filler.",
+    "Return the single best SKU for the goal: the main item, not a bundle.",
     "Reply with JSON only: {\"skus\": string[], \"rationale\": string}.",
     "Never invent SKUs. Keep one merchant per order. rationale must cite the binding limits.",
   ].join(" ");
@@ -136,6 +133,9 @@ async function llmDraft(goal: string, mandate: Mandate): Promise<AgentDraft | nu
     body: JSON.stringify({
       model: LLM_MODEL,
       temperature: 0,
+      // No max_tokens: on this model the cap is spent on reasoning tokens first,
+      // and a capped request comes back with finish_reason "length" and empty
+      // content, which would look like a silent failure.
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: system },
@@ -167,6 +167,26 @@ export interface ProposeResult {
   engine: AgentResult["engine"];
 }
 
+/**
+ * The mandate's own bundle rule: one merchant, one basket. A second item from the
+ * same store is added only when it costs at most half the main item and still fits
+ * the remaining budget. The planner has always worked this way; applying the same
+ * rule to a model choice keeps the cart deterministic without taking the choice
+ * away from the model.
+ */
+function withAccessory(skus: string[], mandate: Mandate): string[] {
+  const primary = CATALOG.find((product) => product.sku === skus[0]);
+  if (!primary || skus.length !== 1) return skus;
+  const budgetLeft = mandate.budgetCents - mandate.spentCents - primary.priceCents;
+  const accessory = CATALOG.filter((product) => permissible(product, mandate))
+    .filter((product) => product.sku !== primary.sku)
+    .filter((product) => product.merchant === primary.merchant)
+    .filter((product) => product.priceCents <= budgetLeft)
+    .filter((product) => product.priceCents <= primary.priceCents / 2)
+    .sort((a, b) => b.priceCents - a.priceCents)[0];
+  return accessory ? [primary.sku, accessory.sku] : skus;
+}
+
 export async function proposeWithEngine(
   goal: string,
   mandate: Mandate,
@@ -187,7 +207,7 @@ export async function proposeWithEngine(
     draft = heuristicDraft(goal, mandate);
   }
 
-  const items = draft.skus
+  const items = withAccessory(draft.skus, mandate)
     .map((sku) => CATALOG.find((product) => product.sku === sku))
     .filter((product): product is Product => Boolean(product))
     .map((product) => toLineItem(product));

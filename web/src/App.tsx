@@ -246,7 +246,7 @@ export function App() {
               ))}
             </div>
             <button type="button" className="primary" disabled={busy || !selected} onClick={askAgent}>
-              {busy ? "Working…" : "Ask the agent"}
+              {busy ? "Asking the model…" : "Ask the agent"}
             </button>
             <p className="notice" role="status" aria-live="polite" aria-atomic="true">{notice}</p>
           </div>
