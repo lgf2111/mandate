@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { z } from "zod";
 import { agentEngine, proposeWithEngine } from "./agent.js";
-import { CATALOG } from "./catalog.js";
+import { CATALOG, searchCatalog } from "./catalog.js";
 import { createOrder, captureOrder, paypalMode } from "./paypal.js";
 import { evaluate, proposalTotalCents, type Mandate, type Proposal } from "./policy.js";
 import { store, type Order } from "./store.js";
@@ -72,6 +72,43 @@ export function buildApp(): express.Express {
 
   app.get("/api/mandates", (_req, res) => {
     res.json({ mandates: store.listMandates() });
+  });
+
+  // The user states a goal; the app drafts the limits and asks for one approval.
+  // Authorship moves from the person to the system, and the person keeps the veto.
+  app.post("/api/mandates/draft", (req, res) => {
+    const parsed = z.object({ goal: z.string().min(3).max(400) }).safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "invalid_goal", issues: parsed.error.issues });
+      return;
+    }
+    const matches = searchCatalog(parsed.data.goal, 6);
+    const primary = matches[0];
+    if (!primary) {
+      res.status(400).json({ error: "no_products_match", detail: "No catalogue item fits that goal." });
+      return;
+    }
+    const roundUpTo = (cents: number, step: number) => Math.ceil(cents / step) * step;
+    const draft: Mandate = {
+      id: "draft",
+      name: parsed.data.goal.slice(0, 60),
+      budgetCents: roundUpTo(primary.priceCents * 2, 5_000),
+      spentCents: 0,
+      perTransactionCapCents: roundUpTo(primary.priceCents * 1.5, 5_000),
+      approvalThresholdCents: roundUpTo(primary.priceCents, 5_000),
+      allowedCategories: [...new Set(matches.map((item) => item.category))],
+      allowedMerchants: [...new Set(matches.map((item) => item.merchant))],
+      blockedMerchants: [],
+      expiresAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+      currency: "USD",
+    };
+    res.json({
+      draft,
+      because:
+        `Drafted from "${parsed.data.goal}" and the catalogue: the main item is ${primary.name} ` +
+        `at ${(primary.priceCents / 100).toFixed(2)}, so the budget is twice that, the cap is one ` +
+        `and a half, and anything above the item price needs you.`,
+    });
   });
 
   app.post("/api/mandates", (req, res) => {

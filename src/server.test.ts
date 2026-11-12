@@ -207,3 +207,30 @@ describe("POST /api/checkout", () => {
     expect(unchanged.spentCents).toBe(0);
   });
 });
+
+describe("POST /api/mandates/draft", () => {
+  it("drafts limits a person would otherwise type, from the goal alone", async () => {
+    const response = await request(app)
+      .post("/api/mandates/draft")
+      .send({ goal: "trail running shoes under the cap" })
+      .expect(200);
+
+    const draft = response.body.draft as Mandate;
+    // Trail Runner 2 is $94: budget rounds to $200, cap to $150, threshold to $100.
+    expect(draft.budgetCents).toBe(20_000);
+    expect(draft.perTransactionCapCents).toBe(15_000);
+    expect(draft.approvalThresholdCents).toBe(10_000);
+    expect(draft.allowedMerchants).toContain("RunCo");
+    expect(draft.allowedCategories).toContain("running");
+    expect(draft.spentCents).toBe(0);
+    expect(response.body.because).toMatch(/Trail Runner 2/);
+  });
+
+  it("refuses a goal too short to draft from", async () => {
+    const response = await request(app)
+      .post("/api/mandates/draft")
+      .send({ goal: "hi" })
+      .expect(400);
+    expect(response.body.error).toBe("invalid_goal");
+  });
+});

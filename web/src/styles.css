@@ -150,3 +150,22 @@ th { color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spa
 .muted { color: var(--dim); }
 .small { font-size: 12.5px; }
 .mono { font-family: var(--mono); }
+
+/* The goal comes first; the drafted limits are a confirmation, not a form. */
+.goal-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.goal-actions .ghost { width: 100%; }
+.card.draft { border-color: var(--accent); }
+.card.draft .draft-line { margin: 10px 0 6px; font-size: 15px; line-height: 1.5; }
+
+/* Three steps, one decision each; the seven fields stay behind a disclosure. */
+.step {
+  display: inline-grid; place-items: center; width: 20px; height: 20px; margin-right: 8px;
+  border-radius: 999px; border: 1px solid var(--line); color: var(--dim);
+  font: 11px/1 var(--mono); vertical-align: 1px;
+}
+details.rules { margin-top: 12px; }
+details.rules > summary {
+  cursor: pointer; color: var(--dim); font-size: 13px; padding: 6px 0;
+}
+details.rules > summary:hover { color: var(--text); }
+details.rules[open] > summary { margin-bottom: 8px; }

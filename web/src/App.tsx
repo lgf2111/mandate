@@ -61,6 +61,9 @@ export function App() {
   // notice lives at the bottom of the other column, ~600px away and below the
   // fold at 1440x900, so a failed capture used to fail silently on screen.
   const [actionNotice, setActionNotice] = useState<string>("");
+  // The goal comes first: the app drafts the limits from it and asks for one approval.
+  const [draft, setDraft] = useState<Mandate | null>(null);
+  const [draftBecause, setDraftBecause] = useState<string>("");
   const [approveUrl, setApproveUrl] = useState<string | null>(null);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
 
@@ -151,6 +154,61 @@ export function App() {
     setBusy(false);
   }
 
+  async function draftRules() {
+    if (!goal.trim()) return;
+    setBusy(true);
+    setNotice("");
+    try {
+      const response = await fetch("/api/mandates/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ goal }),
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        setNotice(body.detail ?? "Could not draft limits from that goal.");
+        return;
+      }
+      setDraft(body.draft);
+      setDraftBecause(body.because);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function useDraft() {
+    if (!draft) return;
+    setBusy(true);
+    try {
+      const response = await fetch("/api/mandates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: draft.name,
+          budgetCents: draft.budgetCents,
+          perTransactionCapCents: draft.perTransactionCapCents,
+          approvalThresholdCents: draft.approvalThresholdCents,
+          allowedCategories: draft.allowedCategories,
+          allowedMerchants: draft.allowedMerchants,
+          blockedMerchants: draft.blockedMerchants,
+          expiresAt: draft.expiresAt,
+        }),
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        setNotice(body.error ?? "Could not save those limits.");
+        return;
+      }
+      setMandates((current) => [...current, body.mandate]);
+      setSelectedId(body.mandate.id);
+      setDraft(null);
+      setDraftBecause("");
+      setNotice("Limits set from your goal. Adjust any of them below.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function saveMandate(patch: Partial<Mandate>) {
     if (!selected) return;
     const next = { ...selected, ...patch };
@@ -218,19 +276,7 @@ export function App() {
         <section className="col">
           <div className="card">
             <div className="card-head">
-              <h2>Mandate</h2>
-              {selected && <span className="muted mono" title={selected.id}>{selected.id.slice(0, 8)}</span>}
-            </div>
-            {selected ? (
-              <MandateEditor mandate={selected} onChange={saveMandate} />
-            ) : (
-              <p className="muted">Loading…</p>
-            )}
-          </div>
-
-          <div className="card">
-            <div className="card-head">
-              <h2>Goal</h2>
+              <h2><span className="step">1</span> What do you want to buy?</h2>
               <span className="muted mono">{engine ? `engine ${engine}` : "engine pending"}</span>
             </div>
             <label className="sr-only" htmlFor="goal-input">Shopping goal</label>
@@ -238,24 +284,65 @@ export function App() {
               id="goal-input"
               value={goal}
               onChange={(event) => setGoal(event.target.value)}
-              rows={3}
+              rows={2}
               aria-describedby="goal-hint"
             />
             <p id="goal-hint" className="hint">
-              Describe the purchase. The agent proposes a cart; the mandate checks it before any money moves.
+              One sentence. The app drafts the limits; you approve them before anything is bought.
             </p>
             <div className="chips" role="group" aria-label="Example goals">
               {EXAMPLES.map((example) => (
                 <button key={example} type="button" className="chip" onClick={() => setGoal(example)}>{example}</button>
               ))}
             </div>
-            <button type="button" className="primary" disabled={busy || !selected} onClick={askAgent}>
-              {busy ? "Asking the model…" : "Ask the agent"}
-            </button>
+            <div className="goal-actions">
+              <button type="button" className="primary" disabled={busy} onClick={draftRules}>
+                {busy ? "Working…" : "Draft the limits"}
+              </button>
+            </div>
             <p className="notice" role="status" aria-live="polite" aria-atomic="true">{notice}</p>
           </div>
-        </section>
 
+          <div className="card">
+            <div className="card-head">
+              <h2><span className="step">2</span> Check the limits</h2>
+              {selected && <span className="muted mono" title={selected.id}>{selected.id.slice(0, 8)}</span>}
+            </div>
+            {draft ? (
+              <>
+                <p className="draft-line mono">
+                  {money(draft.budgetCents)} budget · {money(draft.perTransactionCapCents ?? 0)} cap · approval above {money(draft.approvalThresholdCents ?? 0)} · {draft.allowedMerchants.join(", ") || "any merchant"} · {draft.allowedCategories.join(", ") || "any category"}
+                </p>
+                <p className="hint">{draftBecause}</p>
+                <div className="actions">
+                  <button type="button" className="primary small" disabled={busy} onClick={useDraft}>
+                    Use these limits
+                  </button>
+                  <button type="button" className="ghost" disabled={busy} onClick={() => { setDraft(null); setDraftBecause(""); }}>
+                    Dismiss
+                  </button>
+                </div>
+              </>
+            ) : selected ? (
+              <p className="draft-line mono">
+                {money(selected.budgetCents)} budget · {money(selected.perTransactionCapCents ?? 0)} cap · approval above {money(selected.approvalThresholdCents ?? 0)} · {selected.allowedMerchants.join(", ") || "any merchant"} · {selected.allowedCategories.join(", ") || "any category"}
+              </p>
+            ) : (
+              <p className="muted">Describe a goal above; the limits appear here.</p>
+            )}
+            {selected && (
+              <details className="rules">
+                <summary>Edit the rules by hand ({7} fields)</summary>
+                <MandateEditor mandate={selected} onChange={saveMandate} />
+              </details>
+            )}
+            <div className="goal-actions">
+              <button type="button" className="primary" disabled={busy || !selected} onClick={askAgent}>
+                {busy ? "Asking the model…" : "Ask the agent"}
+              </button>
+            </div>
+          </div>
+        </section>
         <section className="col">
           <div className="card proposal">
             <div className="card-head">
