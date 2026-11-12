@@ -34,6 +34,10 @@ type Order = {
 
 const money = (cents: number) => `${cents < 0 ? "-" : ""}$${(Math.abs(cents) / 100).toFixed(2)}`;
 
+type Toast = { id: number; kind: "error" | "info" | "success"; text: string };
+
+const OFFLINE_TEXT = "Cannot reach the server. Check that it is running, then try again.";
+
 const OUTCOME_LABEL: Record<Decision["outcome"], string> = {
   allow: "Allow",
   require_approval: "Approval required",
@@ -67,22 +71,73 @@ export function App() {
   const [approveUrl, setApproveUrl] = useState<string | null>(null);
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
   const lastCaptureAt = useRef(0);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const nextToastId = useRef(0);
+
+  function toast(kind: Toast["kind"], text: string) {
+    const id = ++nextToastId.current;
+    // The same sentence twice is noise: replace it, and never stack more than two.
+    setToasts((current) => [...current.filter((item) => item.text !== text), { id, kind, text }].slice(-2));
+    // Everything clears itself; errors get longer because they carry a next step.
+    window.setTimeout(
+      () => setToasts((current) => current.filter((item) => item.id !== id)),
+      kind === "error" ? 12_000 : 5_000,
+    );
+  }
+
+  function dismissToast(id: number) {
+    setToasts((current) => current.filter((item) => item.id !== id));
+  }
 
   const selected = useMemo(() => mandates.find((m) => m.id === selectedId) ?? null, [mandates, selectedId]);
 
+  /** Server codes are for logs; people get a sentence and the next step. */
+  function explanation(error: unknown, fallback: string, detail = ""): string {
+    if (detail.includes("ORDER_NOT_APPROVED")) {
+      return "PayPal says this order is not approved yet. Approve it there, then retry.";
+    }
+    const code = typeof error === "string" ? error : "";
+    const map: Record<string, string> = {
+      approval_required: "That cart needs a human approval above the threshold.",
+      denied_by_policy: "The mandate refused that cart. Nothing was charged.",
+      invalid_mandate: "Those limits are not valid — check the numbers and try again.",
+      invalid_goal: "Describe the purchase in a few more words.",
+      no_products_match: "Nothing in the catalogue fits that goal.",
+      mandate_not_found: "That mandate no longer exists. Reset the demo data.",
+      upstream_failure: "PayPal did not answer. Check the order in PayPal, then retry.",
+    };
+    return map[code] ?? fallback;
+  }
+
+  /** Network errors reject before any response exists, and read as jargon. */
+  function offline(error: unknown, fallback: string): string {
+    return error instanceof TypeError
+      ? "Cannot reach the server. Check that it is running, then try again."
+      : fallback;
+  }
+
   const refresh = useCallback(async () => {
-    const [healthRes, mandatesRes, ledgerRes] = await Promise.all([
-      fetch("/api/health"),
-      fetch("/api/mandates"),
-      fetch("/api/ledger"),
-    ]);
-    const healthBody = await healthRes.json();
-    setHealth({ paypal: healthBody.paypal, agent: healthBody.agent });
-    const mandateBody = await mandatesRes.json();
-    setMandates(mandateBody.mandates);
-    setSelectedId((current) => current || mandateBody.mandates[0]?.id || "");
-    const ledgerBody = await ledgerRes.json();
-    setOrders(ledgerBody.orders);
+    try {
+      const [healthRes, mandatesRes, ledgerRes] = await Promise.all([
+        fetch("/api/health"),
+        fetch("/api/mandates"),
+        fetch("/api/ledger"),
+      ]);
+      if (!healthRes.ok) throw new Error("health");
+      const healthBody = await healthRes.json();
+      setHealth({ paypal: healthBody.paypal, agent: healthBody.agent });
+      const mandateBody = await mandatesRes.json();
+      setMandates(mandateBody.mandates);
+      setSelectedId((current) => current || mandateBody.mandates[0]?.id || "");
+      const ledgerBody = await ledgerRes.json();
+      setOrders(ledgerBody.orders);
+    } catch {
+      setToasts((current) =>
+        current.some((item) => item.text === OFFLINE_TEXT)
+          ? current
+          : [...current, { id: -1, kind: "error" as const, text: OFFLINE_TEXT }],
+      );
+    }
   }, []);
 
   useEffect(() => {
@@ -101,12 +156,14 @@ export function App() {
         body: JSON.stringify({ goal, mandateId: selected.id }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.error ?? "proposal failed");
+      if (!response.ok) {
+        throw Object.assign(new Error(body.error ?? "proposal_failed"), { code: body.error });
+      }
       setProposal(body.proposal);
       setDecision(body.decision);
       setEngine(body.engine);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "proposal failed");
+      toast("error", offline(error, explanation((error as { code?: string }).code, "The agent did not answer. Try again.")));
     } finally {
       setBusy(false);
     }
@@ -124,7 +181,7 @@ export function App() {
       });
       const body = await response.json();
       if (!response.ok) {
-        setActionNotice(body.error === "approval_required" ? "Approval is required above the threshold." : (body.error ?? "Checkout failed."));
+        setActionNotice(explanation(body.error, "Checkout failed. Try again."));
         return;
       }
       if (body.approveUrl) {
@@ -135,6 +192,8 @@ export function App() {
         setActionNotice(`Paid ${money(body.order.totalCents)} to ${body.order.merchant}.`);
       }
       await refresh();
+    } catch (error) {
+      setActionNotice(offline(error, "Checkout did not complete. Try again."));
     } finally {
       setBusy(false);
     }
@@ -157,16 +216,25 @@ export function App() {
   async function capturePending() {
     if (!pendingOrderId) return;
     setBusy(true);
-    const response = await fetch(`/api/orders/${pendingOrderId}/capture`, { method: "POST" });
-    if (response.ok) {
-      setActionNotice("Payment captured.");
-      setApproveUrl(null);
-      setPendingOrderId(null);
-      await refresh();
-    } else {
-      setActionNotice("Payment capture failed. Check the order in PayPal and try again.");
+    try {
+      const response = await fetch(`/api/orders/${pendingOrderId}/capture`, { method: "POST" });
+      const body = await response.json().catch(() => ({}));
+      if (response.ok) {
+        setActionNotice("Payment captured.");
+        toast("success", `Paid ${money(body.order?.totalCents ?? 0)} — the ledger has the row.`);
+        setApproveUrl(null);
+        setPendingOrderId(null);
+        await refresh();
+      } else {
+        const why = explanation(body.error, "Payment capture failed. Check the order in PayPal and try again.", String(body.detail ?? ""));
+        setActionNotice(why);
+        toast("error", why);
+      }
+    } catch (error) {
+      toast("error", offline(error, "Payment capture failed. Try again."));
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   }
 
   async function draftRules() {
@@ -181,11 +249,13 @@ export function App() {
       });
       const body = await response.json();
       if (!response.ok) {
-        setNotice(body.detail ?? "Could not draft limits from that goal.");
+        toast("error", explanation(body.error, "Could not draft limits from that goal."));
         return;
       }
       setDraft(body.draft);
       setDraftBecause(body.because);
+    } catch (error) {
+      toast("error", offline(error, "Could not reach the server to draft the limits."));
     } finally {
       setBusy(false);
     }
@@ -211,14 +281,16 @@ export function App() {
       });
       const body = await response.json();
       if (!response.ok) {
-        setNotice(body.error ?? "Could not save those limits.");
+        toast("error", explanation(body.error, "Could not save those limits."));
         return;
       }
       setMandates((current) => [...current, body.mandate]);
       setSelectedId(body.mandate.id);
       setDraft(null);
       setDraftBecause("");
-      setNotice("Limits set from your goal. Adjust any of them below.");
+      toast("success", "Limits set. You can adjust any of them below.");
+    } catch (error) {
+      toast("error", offline(error, "Could not save those limits."));
     } finally {
       setBusy(false);
     }
@@ -227,32 +299,42 @@ export function App() {
   async function saveMandate(patch: Partial<Mandate>) {
     if (!selected) return;
     const next = { ...selected, ...patch };
-    const response = await fetch("/api/mandates", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: next.name,
-        budgetCents: next.budgetCents,
-        perTransactionCapCents: next.perTransactionCapCents,
-        approvalThresholdCents: next.approvalThresholdCents,
-        allowedCategories: next.allowedCategories,
-        allowedMerchants: next.allowedMerchants,
-        blockedMerchants: next.blockedMerchants,
-        expiresAt: next.expiresAt,
-      }),
-    });
-    const body = await response.json();
-    if (response.ok) {
+    try {
+      const response = await fetch("/api/mandates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: next.name,
+          budgetCents: next.budgetCents,
+          perTransactionCapCents: next.perTransactionCapCents,
+          approvalThresholdCents: next.approvalThresholdCents,
+          allowedCategories: next.allowedCategories,
+          allowedMerchants: next.allowedMerchants,
+          blockedMerchants: next.blockedMerchants,
+          expiresAt: next.expiresAt,
+        }),
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        toast("error", explanation(body.error, "Those rules were rejected. Check the numbers."));
+        return;
+      }
       setMandates((current) => [...current, body.mandate]);
       setSelectedId(body.mandate.id);
-      setNotice("Saved as a new mandate version.");
-    } else {
-      setNotice(body.error === "invalid_mandate" ? "The mandate was rejected. Check the fields and try again." : (body.error ?? "Could not save the mandate."));
+      toast("success", "Saved as a new mandate version.");
+    } catch (error) {
+      toast("error", offline(error, "Could not save the rules."));
     }
   }
 
+
   async function reset() {
-    await fetch("/api/reset", { method: "POST" });
+    try {
+      await fetch("/api/reset", { method: "POST" });
+    } catch (error) {
+      toast("error", offline(error, "Could not reset the demo data."));
+      return;
+    }
     setProposal(null);
     setDecision(null);
     setOrders([]);
@@ -474,6 +556,22 @@ export function App() {
           </div>
         </section>
       </main>
+
+      <div className="toasts" aria-live="polite" aria-atomic="false">
+        {toasts.map((item) => (
+          <div key={item.id} className={`toast ${item.kind}`}>
+            <p className="toast-text">{item.text}</p>
+            <button
+              type="button"
+              className="toast-close"
+              aria-label="Dismiss message"
+              onClick={() => dismissToast(item.id)}
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
