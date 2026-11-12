@@ -65,7 +65,7 @@ The important design choice: **the model never decides whether to pay.** It prop
 ## Tests
 
 ```bash
-npm test        # policy engine, 15 cases incl. boundaries and multi-reason denials
+npm test        # policy engine, 16 cases incl. boundaries and multi-reason denials
 npm run typecheck
 ```
 

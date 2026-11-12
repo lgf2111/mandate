@@ -27,24 +27,32 @@ can ship in a single sitting.
 
 ## Evidence from the code
 
-- `web/src/App.tsx:213` — `<main className="grid">` is two equal columns: mandate editor +
-  goal on the left, proposal + ledger on the right.
-- `web/src/App.tsx:150` — `saveMandate()` posts to `/api/mandates`, which **creates a new
-  mandate** (verified: `POST /api/mandates` returns 201 with a new id and `spentCents: 0`)
-  while `refresh()` keeps `selectedId` on the old one (`App.tsx:72`). The edit therefore
-  vanishes from the form, the new version is never shown, and any spending history stays
-  with the old mandate. The button says "Save as new version"; the visible effect is nothing.
-- `web/src/App.tsx:255` — the decision reasons are rendered as prose bullets
-  (`ul.reasons`), so a judge reads sentences to work out which limit fired.
-- `web/src/App.tsx:305` — `deny` replaces the pay button with a red banner; there is no
-  statement of what would make the cart pass.
-- `web/src/App.tsx:203` — `Reset demo data` is a ghost button in the masthead beside the
-  status badges, with no confirmation, and it deletes every mandate and order.
-- `web/src/App.tsx:245` — the goal textarea's value duplicates the first example chip and
-  the hint that follows it: the same sentence appears three times within 120 px.
-- Accessibility that already holds: labelled inputs with `aria-describedby`, a live region
-  for the decision (`role="status"`), `aria-busy` on `main`, visible `:focus-visible` rings,
-  and every ratio above 4.5:1 (lowest 5.14:1 for `--faint` on `--panel`).
+- `web/src/App.tsx:213` — `<main className="grid">` is two columns (`.grid`,
+  `web/src/styles.css:62`, `0.9fr / 1.1fr`) holding a seven-field editor plus goal on the
+  left, proposal and ledger on the right.
+- `web/src/App.tsx:150` — `saveMandate()` posts to `/api/mandates`, and `src/server.ts:77`
+  creates a **new** mandate every time: fresh `crypto.randomUUID()`, and `spentCents: 0`
+  hard-coded. The client does show the new version (`App.tsx:169-170` appends it and selects
+  it) — but the saved mandate starts at zero spend, and nothing in the UI can return to the
+  older one (`setSelectedId` is called only at `:75`, `:170`, `:182`). Editing a rule after a
+  settlement therefore re-arms the budget while the old version keeps the history.
+- `web/src/App.tsx:301` — decision reasons render as prose bullets. `reason.code` exists in
+  the payload and is used only as a React key, so the code a judge would remember
+  (`over_budget`) never reaches the screen.
+- `web/src/App.tsx:309` — deny and settle share one `.actions` container; deny substitutes a
+  plain `div.blocked` (`:311`) for the button, and there is no statement of what would pass.
+  The `.blocked` div is also outside the live region, so a screen reader is not told.
+- `web/src/App.tsx:208` — `Reset demo data` is a ghost button in the masthead beside the
+  status badges, unguarded, and it wipes every mandate and order (`/api/reset`).
+- `web/src/App.tsx:235` and `:245` — the goal's initial value is `EXAMPLES[0]`, so the same
+  sentence appears in the textarea and in the first chip until the first keystroke. Twice,
+  not three times: the hint below is different copy.
+- `src/server.ts:206` — `/api/ledger` returns `store.listOrders()` unfiltered, so the ledger is
+  global while `spentCents` is per-mandate. After a save the editor reads "Spent $0.00 of
+  $200.00" beside a ledger still listing the previous version's row.
+- Accessibility that already holds: labelled inputs with `aria-describedby`, a live region on
+  the decision (`role="status"`), `aria-busy` on `main`, visible `:focus-visible` rings, and
+  every colour pair at or above 4.5:1 (lowest `--faint` on `--panel` = 5.14:1, recomputed).
 
 ## Goals vs. Non-Goals
 
@@ -80,25 +88,85 @@ can ship in a single sitting.
 
 ## Key Decisions & Staging
 
-- **D0 (now):** ship the entry. No UI change until the Devpost form is submitted; the film
-  matches `608782f`.
-- **D1:** decision-first layout. Swap the columns' contents so the proposal/decision card is
-  the first thing read; make the money button the only filled button; demote "Ask the agent"
-  to the goal card's inline action. Acceptance: at 1440x900 the outcome pill, total and the
-  fired reason are all above the fold without scrolling; exactly one filled button per state.
-- **D2:** the mandate as a summary. Headline it `$200 budget · $150 cap · approval above
-  $100`, with the seven fields behind one "Edit rules" disclosure. Acceptance: the collapsed
-  summary is ≤ 2 lines and states the three numbers the demo depends on.
-- **D3:** fix the save path. PATCH the existing mandate instead of creating a new one, or
-  explicitly create a version and select it. Acceptance: editing a field and saving keeps
-  the same mandate id and its `spentCents`, and the form shows the saved values.
-- **D4:** state-specific next step. Deny → name the single most relevant limit and the
-  smallest change that would pass; settled → the ledger row is the confirmation, not a
-  toast; empty → the goal field is focused.
-- **D5:** move `Reset demo data` behind a "Demo" menu with a confirm step. Acceptance:
-  nothing destructive sits in the masthead, and the reset is two deliberate clicks.
+Ordered by what unblocks what. D0 is a gate, not a stage.
+
+- **D0 — ship first.** Submission confirmed before any pixel moves, and the deployed app
+  pinned to the commit the film was made from. Exit condition: the Devpost URL exists.
+- **D1 — stop forking the budget.** Add `PATCH /api/mandates/:id` (a merge into the existing
+  mandate; `store.saveMandate` already upserts by id) and point `saveMandate()` at it. This is
+  a server change, not a UI tweak: new route, its own schema (do not reuse
+  `mandateSchema.partial()`, whose `.default()`s would null the cap and empty the lists), and
+  404 `mandate_not_found`. No pixels change, so the film stays valid.
+  *Acceptance:* create a mandate, settle $115, PATCH `{name}`, then `GET /api/mandates` —
+  same id, `spentCents` still 11 500, one mandate in the list.
+- **D2 — mandate as a summary line.** Collapse the seven fields to a headline plus one
+  "Edit rules" disclosure, but the headline must carry the rules the demo turns on, not just
+  money: `$200 budget · $150 cap · approval above $100 · RunCo,TrailSupply · running,apparel`.
+  Hiding merchants and categories hides the cause of a `merchant_blocked` denial, which is
+  half the pitch. *Acceptance:* a unit test on `summarize(mandate)` for the string above plus
+  the null branches ("no cap", "no approval required").
+- **D3 — the decision gets the first read.** Move the proposal/decision column ahead of the
+  editor in the JSX (not CSS `order`, which would break focus order) and rebalance the grid
+  to `1.1fr / 0.9fr`. *Acceptance:* in the DOM, the decision card precedes the mandate card,
+  and the outcome label plus `Total` are the first two texts inside the first card.
+- **D4 — the verdict is the loudest thing.** The outcome chip is `11.5px` mono
+  (`styles.css:125`) while the model's rationale is a bordered panel at 13.5px — the quote gets
+  the decoration, the verdict gets the smallest type. Invert that: verdict large, the reason
+  code (`over_budget`) rendered beside it, the rationale demoted to muted text.
+  *Acceptance:* the chip's computed font-size is the largest in the card, and the reason code
+  string is present in the DOM.
+- **D5 — one filled button per state; next step in the same card.** Demote "Save as new
+  version" to ghost (it is the same gradient as the brand mark today, so the action colour
+  signals chrome rather than money), and move the checkout notice out of the Goal card
+  (`App.tsx:251`, ~600px from the controls it describes) into the decision card. Deny keeps a
+  full reason list — the Devpost copy promises "every reason, not just the first" — and gains
+  one computed line above it naming the limit that fired and the smallest change that passes.
+  *Acceptance:* `document.querySelectorAll("button.primary").length === 1` in each state, and
+  the reason list still shows every code the API returned.
+- **D6 — reset gets a confirm.** One `confirm()` guard, not a menu: the store reseeds itself
+  anyway, and a popover costs more than the risk it removes.
+- **Cut: the "Demo" menu** from the earlier draft (focus management, Escape, outside-click) —
+  heavier than D2 for no judge-facing value.
 
 ## Analysis
 
-*(Filled from the Goldfish review; any claim the reviewers get wrong is corrected here
-rather than repeated.)*
+Seven lenses ran against this brief. The first draft was wrong in its headline claim, so the
+brief is corrected rather than annotated with a retraction.
+
+**Rejected: the original D3 premise.** The draft said the saved edit "vanishes from the form".
+It does not — `App.tsx:169-170` appends the response and selects the new id, and the editor
+re-syncs from it. Three lenses caught this independently. The defect underneath is narrower
+and worse: `server.ts:77-90` mints a fresh id with `spentCents: 0`, so saving after a settlement
+silently re-arms the budget while the old version keeps the history, and no control can reach
+the old version again. A plan built on the cosmetic reading would have "fixed" a line that
+already worked.
+
+**Rejected: collapsing the mandate to three money numbers.** A judge watching the second
+refusal is watching `merchant_blocked` — the blocked-merchant list. A summary that prints only
+budget, cap and threshold hides the rule that produced the moment. The summary keeps the
+merchant and category lists; the reasons stay complete and "the limit that fired" is added
+above them, never instead of them. That also keeps the Devpost claim ("every reason, not just
+the first") true.
+
+**Kept, against the draft's ordering:** the budget-fork fix comes before any visual work. It
+changes no pixels, so it cannot invalidate the film, and it is what makes the summary line
+truthful — before it, a "Spent $X of $Y" headline can print a number the save path has already
+abandoned.
+
+**Measured, not assumed:** every colour pair in `styles.css` clears 4.5:1 (minimum 5.14:1 for
+`--faint` on `--panel`), so no contrast finding survives review. The hierarchy defect is the
+three identical gradient buttons (Ask, Save, Pay), not the palette. There is no UI test
+harness — `npm test` renders nothing — so each acceptance above is written to be checkable
+without a browser except D3's, which needs one look at 1440x900.
+
+**The transform proposed and not adopted.** One horizontal money line where the cart is a strip
+of ruled cells, each rule a hairline marker, and the verdict a stamp at the cart's edge: rule,
+cart and outcome as one object instead of two columns. It resolves the real tension rather than
+trading one side for the other. Not adopted now because it rewrites the screen with no visual
+spec, and its failure mode is exact: 1200px of horizontal fill reads as a progress bar, and a
+gauge measures rather than forbids, which is the opposite of the product's claim. Worth a
+sketch after D1-D6, not instead of them.
+
+**Open:** the model call takes ~35 s against the configured gateway and the UI offers only
+"Working…". Until that is shortened or explained on screen, a judge who clicks "Ask the agent"
+waits half a minute with no progress signal.

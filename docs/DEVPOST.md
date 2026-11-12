@@ -22,7 +22,7 @@ Multi-merchant carts are denied (`split_merchant`): one order, one merchant, one
 
 The agent proposes; `evaluate()` disposes.
 
-- **`src/policy.ts`** — `evaluate(proposal, mandate, now)` is pure: no I/O, no network, no hidden clock, since `now` is a parameter. It returns an outcome, totals, remaining budget, and reasons with codes and severities.
+- **`src/policy.ts`** — `evaluate(proposal, mandate, now)` is pure: no I/O, no network, no wall-clock read on the decision — `now` is passed in (it defaults to `new Date()` only so the server can call it without one). It returns an outcome, totals, remaining budget, and reasons with codes and severities.
 - **`src/agent.ts`** — proposes only. Candidates are pre-filtered to mandate-permissible items; the model returns SKUs, validated against that list before becoming line items. Any failure (no credentials, non-200, timeout, invalid SKUs) falls back to a deterministic keyword planner, so the demo never needs a model.
 - **`src/server.ts`** — Express. `/api/proposals` evaluates; `/api/checkout` reloads proposal and mandate and re-evaluates before touching PayPal, so calling checkout directly cannot skip policy.
 - **`src/paypal.ts`** — OAuth2 token cached until expiry; Orders v2 create with `intent: CAPTURE` and integer-cent amounts; capture on return. Demo mode lives at this boundary: simulated order IDs, immediate capture, ledger rows marked `provider: "demo"`.
@@ -39,7 +39,7 @@ The agent proposes; `evaluate()` disposes.
 
 ## Accomplishments
 
-48 tests pass — 16 on the policy engine, 13 on the HTTP API, 8 on the agent fallback, 6 on catalog search, 5 on the PayPal client — covering cent-exact boundaries, the block list beating the allow list, unparseable expiry treated as expired, multi-reason denials, and checkout refusing unapproved or denied carts. The full path runs end to end: propose → evaluate → approve → order → capture → ledger, with the budget decrementing between decisions. It runs with zero credentials, and simulated settlements are labelled demo. `npm run typecheck`, `npm test` and `npm run build` run in GitHub Actions.
+52 tests pass — 16 on the policy engine, 13 on the HTTP API, 12 on the agent (the model path, its session header and its fallbacks), 6 on catalog search, 5 on the PayPal client — covering cent-exact boundaries, the block list beating the allow list, unparseable expiry treated as expired, multi-reason denials, and checkout refusing unapproved or denied carts. The full path runs end to end: propose → evaluate → approve → order → capture → ledger, with the budget decrementing between decisions. It runs with zero credentials, and simulated settlements are labelled demo. `npm run typecheck`, `npm test` and `npm run build` run in GitHub Actions.
 
 ## What we learned
 
@@ -69,4 +69,4 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173 — no credentials required; orders are simulated and labelled `demo`. For sandbox orders, copy `.env.example` to `.env` and add `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET`; `npm test` runs the 48 tests.
+Open http://localhost:5173 — no credentials required; orders are simulated and labelled `demo`. For sandbox orders, copy `.env.example` to `.env` and add `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET`; `npm test` runs the 52 tests.
